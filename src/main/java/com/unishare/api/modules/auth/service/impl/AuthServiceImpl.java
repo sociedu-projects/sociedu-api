@@ -1,4 +1,6 @@
 package com.unishare.api.modules.auth.service.impl;
 
-public class AuthServiceImpl {
+import com.unishare.api.modules.auth.service.AuthService;
+
+public class AuthServiceImpl implements AuthService {
 }
