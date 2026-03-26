@@ -1,12 +1,45 @@
 spring:
+  config:
+    import: optional:file:.env[.properties]
   application:
     name: api
 
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/unishare_db}
-    username: ${SPRING_DATASOURCE_USERNAME:root}
-    password: ${SPRING_DATASOURCE_PASSWORD:Hop2005@}
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
     driver-class-name: org.postgresql.Driver
 
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+        jdbc:
+          time_zone: UTC
+    show-sql: false
+
+  mail:
+    host: ${MAIL_HOST}
+    port: ${MAIL_PORT}
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
 server:
-  port: 8080
+  port: ${APP_PORT}
+
+app:
+  jwt:
+    secret: ${JWT_SECRET}
+    access-token-expiration-ms: ${JWT_ACCESS_EXPIRATION_MS}      # 15 minutes
+    refresh-token-expiration-days: ${JWT_REFRESH_EXPIRATION_DAYS}
+  mail:
+    from: ${MAIL_FROM}
