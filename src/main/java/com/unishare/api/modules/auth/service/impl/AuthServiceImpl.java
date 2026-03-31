@@ -49,23 +49,22 @@ public class AuthServiceImpl implements AuthService {
         user.setEmail(request.getEmail());
         user.setEmailVerified(false);
         user.setStatus("pending");
-        userRepository.save(user);
 
-        UserCredential credential = new UserCredential(user,
-                passwordEncoder.encode(request.getPassword()));
-        userCredentialRepository.save(credential);
+        UserCredential credential = new UserCredential();
+        credential.setPasswordHash(passwordEncoder.encode(request.getPassword()));
+        user.setCredential(credential);
 
         Role buyerRole = roleRepository.findByName("BUYER")
                 .orElseThrow(() -> new AppException(AuthErrorCode.USER_NOT_FOUND, "Role BUYER not found"));
-        UserRole userRole = new UserRole();
-        userRole.getId().setUserId(user.getId());
-        userRole.getId().setRoleId(buyerRole.getId());
-        userRole.setUser(user);
-        userRole.setRole(buyerRole);
-        user.getUserRoles().add(userRole);
-        userRepository.save(user);
 
-        sendVerificationEmail(user.getId());
+        UserRole userRole = new UserRole();
+        userRole.setRole(buyerRole);
+        userRole.getId().setRoleId(buyerRole.getId());
+        user.addUserRole(userRole);
+
+        user = userRepository.save(user);
+
+//        sendVerificationEmail(user.getId());
         log.info("[Auth] Registered user: {}", user.getEmail());
 
         return buildAuthResponse(user, List.of("BUYER"));

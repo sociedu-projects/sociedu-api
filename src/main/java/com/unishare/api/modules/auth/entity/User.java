@@ -46,6 +46,21 @@ public class User {
     @Column(name = "updated_at")
     private Instant updatedAt;
 
-    @OneToMany(mappedBy = "user", fetch = FetchType.LAZY)
+    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    private UserCredential credential;
+
+    @OneToMany(mappedBy = "user", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
     private List<UserRole> userRoles = new ArrayList<>();
+
+    public void setCredential(UserCredential credential) {
+        this.credential = credential;
+        if (credential != null) {
+            credential.setUser(this);
+        }
+    }
+
+    public void addUserRole(UserRole userRole) {
+        userRoles.add(userRole);
+        userRole.setUser(this);
+    }
 }

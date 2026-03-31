@@ -1,6 +1,7 @@
 package com.unishare.api.modules.auth.entity;
 
 import jakarta.persistence.*;
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -25,6 +26,7 @@ public class RoleCapability {
     @Getter
     @Setter
     @NoArgsConstructor
+    @EqualsAndHashCode
     public static class RoleCapabilityId implements java.io.Serializable {
         @Column(name = "role_id")
         private Integer roleId;

@@ -108,4 +108,47 @@ public class DocumentServiceImpl implements DocumentService {
                 .map(documentMapper::toResponse)
                 .collect(Collectors.toList());
     }
+
+    // Support methods for external modules
+    @Override
+    @Transactional(readOnly = true)
+    public boolean isDocumentPublished(Long documentId) {
+        return documentRepository.findById(documentId)
+                .map(d -> "published".equals(d.getStatus()))
+                .orElse(false);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public java.math.BigDecimal getDocumentPrice(Long documentId) {
+        return documentRepository.findById(documentId)
+                .map(Document::getPrice)
+                .orElse(java.math.BigDecimal.ZERO);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public String getDocumentTitle(Long documentId) {
+        return documentRepository.findById(documentId)
+                .map(Document::getTitle)
+                .orElse("");
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean isDocumentOwnedBySeller(Long documentId, Long sellerId) {
+        return documentRepository.findById(documentId)
+                .map(d -> d.getSellerId().equals(sellerId))
+                .orElse(false);
+    }
+
+    @Override
+    @Transactional
+    public void updateDocumentRating(Long documentId, double newAverage) {
+        documentRepository.findById(documentId).ifPresent(d -> {
+            d.setRatingAvg(newAverage);
+            // Có thể bổ sung increment sales_count/review_count nếu sau này CSDL map. Tạm thời db chỉ có rating_avg.
+            documentRepository.save(d);
+        });
+    }
 }
