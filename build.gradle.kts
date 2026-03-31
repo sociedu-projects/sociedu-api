@@ -29,6 +29,12 @@ dependencies {
 	runtimeOnly("io.jsonwebtoken:jjwt-impl:0.12.6")
 	runtimeOnly("io.jsonwebtoken:jjwt-jackson:0.12.6")
 
+	// Cloudinary - File Storage
+	implementation("com.cloudinary:cloudinary-http44:1.39.0")
+
+	// File Upload support
+	implementation("commons-io:commons-io:2.15.1")
+
 	compileOnly("org.projectlombok:lombok")
 	annotationProcessor("org.projectlombok:lombok")
 	runtimeOnly("org.postgresql:postgresql")

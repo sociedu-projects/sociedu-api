@@ -1,6 +1,7 @@
 package com.unishare.api.modules.auth.entity;
 
 import jakarta.persistence.*;
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -29,6 +30,7 @@ public class UserRole {
     @Getter
     @Setter
     @NoArgsConstructor
+    @EqualsAndHashCode
     public static class UserRoleId implements java.io.Serializable {
         @Column(name = "user_id")
         private Long userId;

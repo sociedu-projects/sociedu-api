@@ -13,6 +13,13 @@ public interface DocumentService {
     DocumentResponse updateDocument(Long sellerId, Long documentId, DocumentRequest request);
     void deleteDocument(Long sellerId, Long documentId);
     
+    // Support methods for external modules
+    boolean isDocumentPublished(Long documentId);
+    java.math.BigDecimal getDocumentPrice(Long documentId);
+    String getDocumentTitle(Long documentId);
+    boolean isDocumentOwnedBySeller(Long documentId, Long sellerId);
+    void updateDocumentRating(Long documentId, double newAverage);
+    
     // Wishlist
     void addToWishlist(Long userId, Long documentId);
     void removeFromWishlist(Long userId, Long documentId);

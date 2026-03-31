@@ -33,6 +33,18 @@ spring:
           starttls:
             enable: true
 
+cloudinary:
+  cloud-name: ${CLOUDINARY_NAME}
+  api-key: ${CLOUDINARY_API_KEY}
+  api-secret: ${CLOUDINARY_API_SECRET}
+
+vnpay:
+  tmn-code: ${VNP_TMN_CODE}
+  hash-secret: ${VNP_HASH_SECRET}
+  url: ${VNP_URL}
+  return-url: ${VNP_RETURN_URL}
+
+
 server:
   port: ${APP_PORT}
 

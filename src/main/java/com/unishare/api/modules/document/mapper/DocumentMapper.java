@@ -38,9 +38,11 @@ public class DocumentMapper {
         if (entity == null) return null;
         DocumentAssetResponse response = new DocumentAssetResponse();
         response.setId(entity.getId());
-        response.setType(entity.getType());
+        response.setFileType(entity.getFileType());
+        response.setFileFormat(entity.getFileFormat());
         response.setFileUrl(entity.getFileUrl());
         response.setFileSize(entity.getFileSize());
+        response.setSortOrder(entity.getSortOrder());
         return response;
     }
 
@@ -48,9 +50,11 @@ public class DocumentMapper {
         if (request == null) return null;
         DocumentAsset entity = new DocumentAsset();
         entity.setDocument(document);
-        entity.setType(request.getType());
+        entity.setFileType(request.getFileType());
+        entity.setFileFormat(request.getFileFormat());
         entity.setFileUrl(request.getFileUrl());
         entity.setFileSize(request.getFileSize());
+        if (request.getSortOrder() != null) entity.setSortOrder(request.getSortOrder());
         return entity;
     }
 
