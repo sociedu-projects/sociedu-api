@@ -14,7 +14,7 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
         SELECT COUNT(o) > 0 FROM Order o
         JOIN OrderItem oi ON oi.orderId = o.id
         WHERE o.buyerId = :buyerId
-          AND oi.itemType = 'document'
+          AND oi.itemType = 'products'
           AND oi.itemId = :documentId
           AND o.status = 'completed'
     """)

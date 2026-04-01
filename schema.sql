@@ -219,7 +219,7 @@ CREATE TABLE orders
 (
     id           BIGSERIAL PRIMARY KEY,
     buyer_id     BIGINT NOT NULL REFERENCES users (id),
-    type         VARCHAR(50), -- document / mentor
+    type         VARCHAR(50), -- products / mentor
     status       VARCHAR(50), -- pending, completed, cancelled, refunded
     total_amount DECIMAL(10, 2),
     created_at   TIMESTAMP DEFAULT NOW()
@@ -229,7 +229,7 @@ CREATE TABLE order_items
 (
     id        BIGSERIAL PRIMARY KEY,
     order_id  BIGINT REFERENCES orders (id) ON DELETE CASCADE,
-    item_type VARCHAR(50), -- document / booking
+    item_type VARCHAR(50), -- products / booking
     item_id   BIGINT,
     price     DECIMAL(10, 2)
 );

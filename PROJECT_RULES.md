@@ -1,6 +1,6 @@
 # Unishare API - Enterprise Spring Boot Guidelines & Rules
 
-This document outlines the strict coding standards, architectural decisions, and best practices for the Unishare API. All developers and AI Agents MUST follow these rules to ensure the codebase remains maintainable, scalable, secure, and clean.
+This products outlines the strict coding standards, architectural decisions, and best practices for the Unishare API. All developers and AI Agents MUST follow these rules to ensure the codebase remains maintainable, scalable, secure, and clean.
 
 ---
 

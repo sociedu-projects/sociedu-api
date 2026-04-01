@@ -2,10 +2,10 @@ package com.unishare.api.modules.admin.service.impl;
 
 import com.unishare.api.modules.admin.dto.AdminDto.AdminStatsResponse;
 import com.unishare.api.modules.admin.service.AdminService;
-import com.unishare.api.modules.document.dto.DocumentResponse;
-import com.unishare.api.modules.document.entity.Document;
-import com.unishare.api.modules.document.repository.DocumentRepository;
-import com.unishare.api.modules.document.service.DocumentService;
+import com.unishare.api.modules.products.dto.DocumentResponse;
+import com.unishare.api.modules.products.entity.Products;
+import com.unishare.api.modules.products.repository.DocumentRepository;
+import com.unishare.api.modules.products.service.DocumentService;
 import com.unishare.api.modules.mentor.dto.MentorDto.MentorProfileResponse;
 import com.unishare.api.modules.mentor.entity.MentorProfile;
 import com.unishare.api.modules.mentor.repository.MentorProfileRepository;
@@ -81,7 +81,7 @@ public class AdminServiceImpl implements AdminService {
     @Override
     @Transactional
     public DocumentResponse approveProductRequest(Long documentId) {
-        Document doc = documentRepository.findById(documentId)
+        Products doc = documentRepository.findById(documentId)
                 .orElseThrow(() -> new IllegalArgumentException("Document not found"));
         doc.setStatus("published");
         documentRepository.save(doc);

@@ -1,7 +1,7 @@
 package com.unishare.api.modules.order.service.impl;
 
 import com.unishare.api.common.dto.AppException;
-import com.unishare.api.modules.document.service.DocumentService;
+import com.unishare.api.modules.products.service.DocumentService;
 import com.unishare.api.modules.order.dto.OrderRequest;
 import com.unishare.api.modules.order.dto.OrderResponse;
 import com.unishare.api.modules.order.entity.Order;
