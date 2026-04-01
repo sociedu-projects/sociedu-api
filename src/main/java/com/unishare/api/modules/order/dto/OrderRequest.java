@@ -6,9 +6,9 @@ import lombok.Data;
 @Data
 public class OrderRequest {
 
-    /** ID tài liệu muốn mua */
-    @NotNull(message = "documentId is required")
-    private Long documentId;
+    /** ID sản phẩm / dịch vụ muốn mua */
+    @NotNull(message = "itemId is required")
+    private Long itemId;
 
     /** IP của client (để tạo VNPay URL) */
     private String clientIp;
