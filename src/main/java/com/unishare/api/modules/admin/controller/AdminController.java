@@ -3,7 +3,6 @@ package com.unishare.api.modules.admin.controller;
 import com.unishare.api.common.dto.ApiResponse;
 import com.unishare.api.modules.admin.dto.AdminDto.AdminStatsResponse;
 import com.unishare.api.modules.admin.service.AdminService;
-import com.unishare.api.modules.products.dto.DocumentResponse;
 import com.unishare.api.modules.mentor.dto.MentorDto.MentorProfileResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -36,17 +35,5 @@ public class AdminController {
                 .withData(adminService.approveMentorRequest(id))
                 .withMessage("Mentor approved successfully"));
     }
-
-    @GetMapping("/product-requests")
-    public ResponseEntity<ApiResponse<List<DocumentResponse>>> getProductRequests() {
-        return ResponseEntity.ok(ApiResponse.<List<DocumentResponse>>build()
-                .withData(adminService.getPendingProductRequests()));
-    }
-
-    @PostMapping("/product-requests/{id}/approve")
-    public ResponseEntity<ApiResponse<DocumentResponse>> approveProductRequest(@PathVariable Long id) {
-        return ResponseEntity.ok(ApiResponse.<DocumentResponse>build()
-                .withData(adminService.approveProductRequest(id))
-                .withMessage("Product approved successfully"));
-    }
 }
+

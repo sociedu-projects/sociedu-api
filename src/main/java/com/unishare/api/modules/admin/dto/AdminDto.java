@@ -12,9 +12,7 @@ public class AdminDto {
     public static class AdminStatsResponse {
         private BigDecimal totalSales;
         private Long orderCount;
-        private Long productCount;
         private List<Object> recentOrders; // simplified
         private Long pendingMentorRequests;
-        private Long pendingProductRequests;
     }
 }

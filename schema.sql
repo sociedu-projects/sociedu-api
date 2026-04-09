@@ -208,7 +208,32 @@ CREATE TABLE service_packages
     duration      INT, -- in minutes
     price         DECIMAL(19, 2),
     delivery_type VARCHAR(255), -- online, chat
-    created_at    TIMESTAMP DEFAULT NOW()
+    status        VARCHAR(50) DEFAULT 'draft', -- draft, active, inactive, archived
+    created_at    TIMESTAMP DEFAULT NOW(),
+    updated_at    TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE expertise_categories
+(
+    id         BIGSERIAL PRIMARY KEY,
+    name       VARCHAR(255) NOT NULL UNIQUE,
+    parent_id  BIGINT REFERENCES expertise_categories (id),
+    sort_order INT       DEFAULT 0,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE availability_slots
+(
+    id         BIGSERIAL PRIMARY KEY,
+    mentor_id  BIGINT      NOT NULL REFERENCES users (id),
+    start_time TIMESTAMP   NOT NULL,
+    end_time   TIMESTAMP   NOT NULL,
+    status     VARCHAR(50) DEFAULT 'available', -- available, booked, blocked, cancelled
+    recurrence VARCHAR(50),                     -- none, daily, weekly
+    timezone   VARCHAR(100) DEFAULT 'UTC',
+    capacity   INT          DEFAULT 1,
+    created_at TIMESTAMP    DEFAULT NOW(),
+    updated_at TIMESTAMP    DEFAULT NOW()
 );
 
 -- ==========================================

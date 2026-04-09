@@ -2,10 +2,6 @@ package com.unishare.api.modules.admin.service.impl;
 
 import com.unishare.api.modules.admin.dto.AdminDto.AdminStatsResponse;
 import com.unishare.api.modules.admin.service.AdminService;
-import com.unishare.api.modules.products.dto.DocumentResponse;
-import com.unishare.api.modules.products.entity.Products;
-import com.unishare.api.modules.products.repository.DocumentRepository;
-import com.unishare.api.modules.products.service.DocumentService;
 import com.unishare.api.modules.mentor.dto.MentorDto.MentorProfileResponse;
 import com.unishare.api.modules.mentor.entity.MentorProfile;
 import com.unishare.api.modules.mentor.repository.MentorProfileRepository;
@@ -26,18 +22,13 @@ public class AdminServiceImpl implements AdminService {
 
     private final MentorProfileRepository mentorProfileRepository;
     private final MentorService mentorService;
-    private final DocumentRepository documentRepository;
-    private final DocumentService documentService;
     private final OrderRepository orderRepository;
 
     @Override
     @Transactional(readOnly = true)
     public AdminStatsResponse getSystemStats() {
         long orderCount = orderRepository.count();
-        long productCount = documentRepository.count();
-        
         long pendingMentor = mentorProfileRepository.findByVerificationStatus("pending").size();
-        long pendingProduct = documentRepository.findByStatus("pending_review").size();
 
         // Optional: Aggregate total sales
         BigDecimal totalSales = BigDecimal.ZERO; 
@@ -45,10 +36,8 @@ public class AdminServiceImpl implements AdminService {
         return AdminStatsResponse.builder()
                 .totalSales(totalSales)
                 .orderCount(orderCount)
-                .productCount(productCount)
                 .recentOrders(Collections.emptyList()) // simplified
                 .pendingMentorRequests(pendingMentor)
-                .pendingProductRequests(pendingProduct)
                 .build();
     }
 
@@ -69,22 +58,5 @@ public class AdminServiceImpl implements AdminService {
         mentorProfileRepository.save(profile);
         return mentorService.getMentorProfile(mentorId);
     }
-
-    @Override
-    @Transactional(readOnly = true)
-    public List<DocumentResponse> getPendingProductRequests() {
-        return documentRepository.findByStatus("pending_review").stream()
-                .map(doc -> documentService.getDocumentById(doc.getId()))
-                .collect(Collectors.toList());
-    }
-
-    @Override
-    @Transactional
-    public DocumentResponse approveProductRequest(Long documentId) {
-        Products doc = documentRepository.findById(documentId)
-                .orElseThrow(() -> new IllegalArgumentException("Document not found"));
-        doc.setStatus("published");
-        documentRepository.save(doc);
-        return documentService.getDocumentById(documentId);
-    }
 }
+

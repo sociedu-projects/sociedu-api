@@ -1,7 +1,6 @@
 package com.unishare.api.modules.order.service.impl;
 
 import com.unishare.api.common.dto.AppException;
-import com.unishare.api.modules.products.service.DocumentService;
 import com.unishare.api.modules.order.dto.OrderRequest;
 import com.unishare.api.modules.order.dto.OrderResponse;
 import com.unishare.api.modules.order.entity.Order;
@@ -30,56 +29,6 @@ public class OrderServiceImpl implements OrderService {
     private final OrderItemRepository orderItemRepository;
     private final OrderMapper orderMapper;
     private final PaymentService paymentService;
-    private final DocumentService documentService;
-
-    @Override
-    @Transactional
-    public OrderResponse createDocumentOrder(Long buyerId, OrderRequest request) {
-        Long documentId = request.getDocumentId();
-
-        // 1. Kiểm tra document tồn tại và đang published
-        if (!documentService.isDocumentPublished(documentId)) {
-            throw new AppException(OrderErrorCode.DOCUMENT_NOT_AVAILABLE);
-        }
-
-        // 2. Không cho mua lại
-        if (orderRepository.hasBuyerPurchasedDocument(buyerId, documentId)) {
-            throw new AppException(OrderErrorCode.ALREADY_PURCHASED);
-        }
-
-        // 3. Lấy giá và tên tài liệu
-        java.math.BigDecimal docPrice = documentService.getDocumentPrice(documentId);
-        String docTitle = documentService.getDocumentTitle(documentId);
-
-        // 4. Tạo Order
-        Order order = new Order();
-        order.setBuyerId(buyerId);
-        order.setType("document");
-        order.setStatus("pending");
-        order.setTotalAmount(docPrice);
-        order = orderRepository.save(order);
-
-        // 5. Tạo OrderItem
-        OrderItem item = new OrderItem();
-        item.setOrderId(order.getId());
-        item.setItemType("document");
-        item.setItemId(documentId);
-        item.setPrice(docPrice);
-        orderItemRepository.save(item);
-
-        // 6. Gọi PaymentService để tạo VNPay payment URL
-        String orderInfo = "Mua tai lieu: " + docTitle;
-        String clientIp = request.getClientIp() != null ? request.getClientIp() : "127.0.0.1";
-        PaymentResponse payment = paymentService.createPayment(order.getId(), docPrice, orderInfo, clientIp);
-
-        log.info("Created document order id={} for buyer={}, document={}", order.getId(), buyerId, documentId);
-
-        // 7. Build response
-        List<OrderItem> items = orderItemRepository.findByOrderId(order.getId());
-        OrderResponse response = orderMapper.toResponse(order, items);
-        response.setPaymentUrl(payment.getPaymentUrl());
-        return response;
-    }
 
     @Override
     @Transactional(readOnly = true)
@@ -101,10 +50,5 @@ public class OrderServiceImpl implements OrderService {
         List<OrderItem> items = orderItemRepository.findByOrderId(orderId);
         return orderMapper.toResponse(order, items);
     }
-
-    @Override
-    @Transactional(readOnly = true)
-    public boolean hasUserPurchasedDocument(Long buyerId, Long documentId) {
-        return orderRepository.hasBuyerPurchasedDocument(buyerId, documentId);
-    }
 }
+
