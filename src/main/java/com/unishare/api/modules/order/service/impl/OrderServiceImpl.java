@@ -10,8 +10,6 @@ import com.unishare.api.modules.order.mapper.OrderMapper;
 import com.unishare.api.modules.order.repository.OrderItemRepository;
 import com.unishare.api.modules.order.repository.OrderRepository;
 import com.unishare.api.modules.order.service.OrderService;
-import com.unishare.api.modules.payment.dto.PaymentResponse;
-import com.unishare.api.modules.payment.service.PaymentService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
