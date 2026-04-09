@@ -19,26 +19,48 @@ public class MentorController {
 
     private final MentorService mentorService;
 
-    // Public Mentor Directory
+    // ===================== PUBLIC ENDPOINTS =====================
+
+    /**
+     * Lấy danh sách tất cả mentor đã được xác minh (verified).
+     * Endpoint công khai - ai cũng có thể xem danh sách mentor.
+     * GET /api/v1/mentors
+     */
     @GetMapping
     public ResponseEntity<ApiResponse<List<MentorProfileResponse>>> getAllVerifiedMentors() {
         return ResponseEntity.ok(ApiResponse.<List<MentorProfileResponse>>build()
                 .withData(mentorService.getAllVerifiedMentors()));
     }
 
+    /**
+     * Lấy thông tin hồ sơ chi tiết của một mentor theo ID.
+     * Endpoint công khai - dùng để xem trang profile của mentor.
+     * GET /api/v1/mentors/{id}
+     */
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<MentorProfileResponse>> getMentorProfile(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.<MentorProfileResponse>build()
                 .withData(mentorService.getMentorProfile(id)));
     }
 
+    /**
+     * Lấy danh sách các gói dịch vụ (service packages) của một mentor theo ID.
+     * Endpoint công khai - dùng để xem các gói mentoring mà mentor cung cấp.
+     * GET /api/v1/mentors/{id}/packages
+     */
     @GetMapping("/{id}/packages")
     public ResponseEntity<ApiResponse<List<ServicePackageResponse>>> getMentorPackages(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.<List<ServicePackageResponse>>build()
                 .withData(mentorService.getMentorPackages(id)));
     }
 
-    // Mentor Management (for the mentor themselves)
+    // ===================== MENTOR SELF-MANAGEMENT ENDPOINTS =====================
+
+    /**
+     * Cập nhật (hoặc tạo mới) hồ sơ mentor của chính người dùng đang đăng nhập.
+     * Yêu cầu xác thực - chỉ mentor tự cập nhật profile của mình.
+     * PUT /api/v1/mentors/me
+     */
     @PutMapping("/me")
     public ResponseEntity<ApiResponse<MentorProfileResponse>> updateMyProfile(
             @AuthenticationPrincipal CustomUserPrincipal principal,
@@ -47,6 +69,11 @@ public class MentorController {
                 .withData(mentorService.createOrUpdateProfile(principal.getUserId(), request)));
     }
 
+    /**
+     * Thêm một gói dịch vụ mới cho mentor đang đăng nhập.
+     * Yêu cầu xác thực - mentor tự tạo gói dịch vụ của mình.
+     * POST /api/v1/mentors/me/packages
+     */
     @PostMapping("/me/packages")
     public ResponseEntity<ApiResponse<ServicePackageResponse>> addPackage(
             @AuthenticationPrincipal CustomUserPrincipal principal,
@@ -55,6 +82,11 @@ public class MentorController {
                 .withData(mentorService.createPackage(principal.getUserId(), request)));
     }
 
+    /**
+     * Xoá một gói dịch vụ của mentor đang đăng nhập theo package ID.
+     * Yêu cầu xác thực - mentor chỉ có thể xoá gói dịch vụ của chính mình.
+     * DELETE /api/v1/mentors/me/packages/{pkgId}
+     */
     @DeleteMapping("/me/packages/{pkgId}")
     public ResponseEntity<ApiResponse<Void>> deletePackage(
             @AuthenticationPrincipal CustomUserPrincipal principal,
