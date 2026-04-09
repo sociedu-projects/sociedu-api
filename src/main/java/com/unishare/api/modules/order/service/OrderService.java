@@ -15,3 +15,4 @@ public interface OrderService {
      */
     OrderResponse getOrderById(Long orderId, Long buyerId);
 }
+

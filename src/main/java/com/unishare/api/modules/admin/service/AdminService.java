@@ -12,3 +12,4 @@ public interface AdminService {
     List<MentorProfileResponse> getPendingMentorRequests();
     MentorProfileResponse approveMentorRequest(Long mentorId);
 }
+

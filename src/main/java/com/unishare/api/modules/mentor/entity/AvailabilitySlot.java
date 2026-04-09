@@ -8,38 +8,39 @@ import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 
 @Entity
-@Table(name = "service_packages")
+@Table(name = "availability_slots")
 @Getter
 @Setter
 @NoArgsConstructor
 @EntityListeners(AuditingEntityListener.class)
-public class ServicePackage {
+public class AvailabilitySlot {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "mentor_id")
+    @Column(name = "mentor_id", nullable = false)
     private Long mentorId;
 
-    private String name;
+    @Column(name = "start_time", nullable = false)
+    private Instant startTime;
 
-    @Column(columnDefinition = "TEXT")
-    private String description;
-
-    private Integer duration; // in minutes
-
-    private BigDecimal price;
-
-    @Column(name = "delivery_type")
-    private String deliveryType; // e.g., online, chat
+    @Column(name = "end_time", nullable = false)
+    private Instant endTime;
 
     @Column(length = 50)
-    private String status = "draft"; // draft, active, inactive, archived
+    private String status = "available"; // available, booked, blocked, cancelled
+
+    @Column(length = 50)
+    private String recurrence; // none, daily, weekly
+
+    @Column(length = 100)
+    private String timezone = "UTC";
+
+    private Integer capacity = 1;
 
     @CreatedDate
     @Column(name = "created_at", updatable = false)
