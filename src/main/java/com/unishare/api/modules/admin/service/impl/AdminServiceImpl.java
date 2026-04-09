@@ -28,11 +28,12 @@ public class AdminServiceImpl implements AdminService {
     @Transactional(readOnly = true)
     public AdminStatsResponse getSystemStats() {
         long orderCount = orderRepository.count();
+
         long pendingMentor = mentorProfileRepository.findByVerificationStatus("pending").size();
 
         // Optional: Aggregate total sales
-        BigDecimal totalSales = BigDecimal.ZERO; 
-        
+        BigDecimal totalSales = BigDecimal.ZERO;
+
         return AdminStatsResponse.builder()
                 .totalSales(totalSales)
                 .orderCount(orderCount)
@@ -58,5 +59,5 @@ public class AdminServiceImpl implements AdminService {
         mentorProfileRepository.save(profile);
         return mentorService.getMentorProfile(mentorId);
     }
-}
 
+}
