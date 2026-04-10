@@ -4,6 +4,10 @@ import com.unishare.api.modules.profile.dto.MentorOnboardingDto.MentorApplyReque
 import com.unishare.api.modules.profile.dto.MentorOnboardingDto.MentorApplicationResponse;
 import com.unishare.api.modules.profile.dto.MentorOnboardingDto.UpdateMentorProfileRequest;
 import com.unishare.api.modules.profile.dto.MentorOnboardingDto.VerificationStatusResponse;
+import com.unishare.api.modules.profile.dto.MentorOnboardingDto.VerificationDocumentResponse;
+import com.unishare.api.modules.profile.dto.MentorOnboardingDto.PayoutInfoRequest;
+import com.unishare.api.modules.profile.dto.MentorOnboardingDto.PayoutInfoResponse;
+import org.springframework.web.multipart.MultipartFile;
 
 public interface MentorOnboardingService {
 
@@ -28,4 +32,14 @@ public interface MentorOnboardingService {
      * Xem trạng thái xác minh hiện tại của mentor.
      */
     VerificationStatusResponse getVerificationStatus(Long userId);
+
+    /**
+     * Upload tài liệu minh chứng xác nhận.
+     */
+    VerificationDocumentResponse uploadVerificationDocument(Long userId, MultipartFile file);
+
+    /**
+     * Thêm hoặc cập nhật thông tin thanh toán (Payout Info).
+     */
+    PayoutInfoResponse updatePayoutInfo(Long userId, PayoutInfoRequest request);
 }

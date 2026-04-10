@@ -12,7 +12,11 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import com.unishare.api.modules.profile.dto.MentorOnboardingDto.VerificationDocumentResponse;
+import com.unishare.api.modules.profile.dto.MentorOnboardingDto.PayoutInfoRequest;
+import com.unishare.api.modules.profile.dto.MentorOnboardingDto.PayoutInfoResponse;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 /**
  * Endpoints cho luồng đăng ký và quản lý hồ sơ mentor (onboarding).
@@ -72,5 +76,30 @@ public class MentorOnboardingController {
         return ResponseEntity.ok(ApiResponse.<VerificationStatusResponse>build()
                 .withData(mentorOnboardingService.getVerificationStatus(principal.getUserId()))
                 .withMessage("Success"));
+    }
+
+    /**
+     * Upload tài liệu minh chứng xác nhận.
+     */
+    @PostMapping("/me/verification-documents")
+    public ResponseEntity<ApiResponse<VerificationDocumentResponse>> uploadVerificationDocument(
+            @AuthenticationPrincipal CustomUserPrincipal principal,
+            @RequestParam("file") MultipartFile file) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.<VerificationDocumentResponse>build()
+                        .withData(mentorOnboardingService.uploadVerificationDocument(principal.getUserId(), file))
+                        .withMessage("Verification document uploaded successfully"));
+    }
+
+    /**
+     * Cập nhật thông tin thanh toán cho mentor.
+     */
+    @PutMapping("/me/payout-info")
+    public ResponseEntity<ApiResponse<PayoutInfoResponse>> updatePayoutInfo(
+            @AuthenticationPrincipal CustomUserPrincipal principal,
+            @Valid @RequestBody PayoutInfoRequest request) {
+        return ResponseEntity.ok(ApiResponse.<PayoutInfoResponse>build()
+                .withData(mentorOnboardingService.updatePayoutInfo(principal.getUserId(), request))
+                .withMessage("Payout info updated successfully"));
     }
 }

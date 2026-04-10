@@ -288,6 +288,48 @@ CREATE TABLE escrow
 );
 
 -- ==========================================
+-- VERIFICATION & ONBOARDING (NEW)
+-- ==========================================
+
+CREATE TABLE verification_documents
+(
+    id          BIGSERIAL PRIMARY KEY,
+    mentor_id   BIGINT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+    file_url    TEXT NOT NULL,
+    file_name   VARCHAR(255),
+    file_type   VARCHAR(100),
+    file_size   BIGINT,
+    status      VARCHAR(50) DEFAULT 'pending',
+    note        TEXT,
+    created_at  TIMESTAMP DEFAULT NOW(),
+    updated_at  TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE mentor_payout_info
+(
+    id              BIGSERIAL PRIMARY KEY,
+    mentor_id       BIGINT UNIQUE NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+    bank_name       VARCHAR(255) NOT NULL,
+    account_number  VARCHAR(100) NOT NULL,
+    account_holder  VARCHAR(255) NOT NULL,
+    branch          VARCHAR(255),
+    created_at      TIMESTAMP DEFAULT NOW(),
+    updated_at      TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE mentor_review_history
+(
+    id              BIGSERIAL PRIMARY KEY,
+    mentor_id       BIGINT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+    reviewer_id     BIGINT REFERENCES users (id),
+    from_status     VARCHAR(50) NOT NULL,
+    to_status       VARCHAR(50) NOT NULL,
+    reason_code     VARCHAR(100),
+    note            TEXT,
+    created_at      TIMESTAMP DEFAULT NOW()
+);
+
+-- ==========================================
 -- SEED DATA
 -- ==========================================
 
