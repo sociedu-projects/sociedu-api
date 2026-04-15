@@ -6,6 +6,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.Instant;
+import java.util.UUID;
 
 @Entity
 @Table(name = "refresh_tokens")
@@ -15,11 +16,11 @@ import java.time.Instant;
 public class RefreshToken {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID id;
 
     @Column(name = "user_id", nullable = false)
-    private Long userId;
+    private UUID userId;
 
     @Column(nullable = false, unique = true, length = 512)
     private String token;
@@ -32,7 +33,7 @@ public class RefreshToken {
     @Column(name = "created_at")
     private Instant createdAt = Instant.now();
 
-    public static RefreshToken of(Long userId, String token, Instant expiresAt) {
+    public static RefreshToken of(UUID userId, String token, Instant expiresAt) {
         RefreshToken rt = new RefreshToken();
         rt.setUserId(userId);
         rt.setToken(token);

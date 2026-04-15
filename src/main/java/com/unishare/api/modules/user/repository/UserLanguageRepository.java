@@ -5,8 +5,9 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.UUID;
 
 @Repository
-public interface UserLanguageRepository extends JpaRepository<UserLanguage, Long> {
-    List<UserLanguage> findByUserId(Long userId);
+public interface UserLanguageRepository extends JpaRepository<UserLanguage, UUID> {
+    List<UserLanguage> findByUserId(UUID userId);
 }

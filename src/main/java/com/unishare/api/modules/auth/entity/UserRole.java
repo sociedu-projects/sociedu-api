@@ -6,6 +6,9 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.io.Serializable;
+import java.util.UUID;
+
 @Entity
 @Table(name = "user_roles")
 @Getter
@@ -31,10 +34,11 @@ public class UserRole {
     @Setter
     @NoArgsConstructor
     @EqualsAndHashCode
-    public static class UserRoleId implements java.io.Serializable {
+    public static class UserRoleId implements Serializable {
         @Column(name = "user_id")
-        private Long userId;
+        private UUID userId;
+
         @Column(name = "role_id")
-        private Integer roleId;
+        private UUID roleId;
     }
 }

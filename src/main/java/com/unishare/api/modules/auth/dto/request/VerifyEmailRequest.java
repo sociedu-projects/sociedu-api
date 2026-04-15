@@ -6,6 +6,6 @@ import lombok.Data;
 @Data
 public class VerifyEmailRequest {
 
-    @NotBlank(message = "Mã OTP không được để trống")
-    private String code;
+    @NotBlank(message = "Token không được để trống")
+    private String token;
 }

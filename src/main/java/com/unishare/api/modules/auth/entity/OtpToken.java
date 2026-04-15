@@ -6,6 +6,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.Instant;
+import java.util.UUID;
 
 @Entity
 @Table(name = "otp_tokens")
@@ -15,13 +16,13 @@ import java.time.Instant;
 public class OtpToken {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID id;
 
     @Column(name = "user_id", nullable = false)
-    private Long userId;
+    private UUID userId;
 
-    @Column(nullable = false, length = 6)
+    @Column(nullable = false, length = 128)
     private String code;
 
     @Enumerated(EnumType.STRING)
@@ -36,7 +37,7 @@ public class OtpToken {
     @Column(name = "created_at")
     private Instant createdAt = Instant.now();
 
-    public static OtpToken of(Long userId, String code, OtpType type, int ttlMinutes) {
+    public static OtpToken of(UUID userId, String code, OtpType type, int ttlMinutes) {
         OtpToken otp = new OtpToken();
         otp.setUserId(userId);
         otp.setCode(code);

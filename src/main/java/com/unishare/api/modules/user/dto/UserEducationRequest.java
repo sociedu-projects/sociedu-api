@@ -1,20 +1,17 @@
 package com.unishare.api.modules.user.dto;
 
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import lombok.Data;
+
+import java.time.LocalDate;
+import java.util.UUID;
 
 @Data
 public class UserEducationRequest {
-    @NotBlank
-    private String university;
-    
-    @NotBlank
-    private String major;
-    
-    @NotNull
-    private Integer startYear;
-    
-    private Integer endYear;
+    private UUID universityId;
+    private UUID majorId;
+    private String degree;
+    private LocalDate startDate;
+    private LocalDate endDate;
+    private Boolean isCurrent;
     private String description;
 }

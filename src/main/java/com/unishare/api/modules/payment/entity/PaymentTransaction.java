@@ -1,11 +1,14 @@
 package com.unishare.api.modules.payment.entity;
 
+import com.unishare.api.common.constants.PaymentTransactionStatuses;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.UUID;
 
 @Entity
 @Table(name = "payment_transactions")
@@ -15,20 +18,26 @@ import java.time.Instant;
 public class PaymentTransaction {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID id;
 
-    @Column(name = "order_id")
-    private Long orderId;
+    @Column(name = "order_id", nullable = false)
+    private UUID orderId;
 
-    @Column(length = 50)
-    private String provider; // vnpay
+    @Column(length = 50, nullable = false)
+    private String provider;
 
-    @Column(name = "transaction_ref", length = 255)
-    private String transactionRef;
+    @Column(name = "provider_transaction_id")
+    private String providerTransactionId;
 
-    @Column(length = 50)
-    private String status; // pending, success, failed
+    @Column(precision = 19, scale = 2, nullable = false)
+    private BigDecimal amount;
+
+    @Column(name = "status", nullable = false)
+    private String status = PaymentTransactionStatuses.PENDING;
+
+    @Column(name = "raw_response", columnDefinition = "jsonb")
+    private String rawResponse;
 
     @Column(name = "created_at")
     private Instant createdAt;

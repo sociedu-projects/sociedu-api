@@ -1,14 +1,17 @@
 package com.unishare.api.modules.payment.service.impl;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.unishare.api.common.constants.PaymentProviders;
+import com.unishare.api.common.constants.PaymentTransactionStatuses;
 import com.unishare.api.common.dto.AppException;
+import com.unishare.api.common.event.PaymentProcessedEvent;
+import com.unishare.api.infrastructure.event.DomainEventPublisher;
 import com.unishare.api.modules.payment.dto.PaymentResponse;
-import com.unishare.api.modules.payment.entity.Escrow;
 import com.unishare.api.modules.payment.entity.PaymentTransaction;
 import com.unishare.api.modules.payment.exception.PaymentErrorCode;
-import com.unishare.api.modules.payment.repository.EscrowRepository;
 import com.unishare.api.modules.payment.repository.PaymentTransactionRepository;
 import com.unishare.api.modules.payment.service.PaymentService;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -25,11 +28,20 @@ import java.util.stream.Collectors;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class VNPayServiceImpl implements PaymentService {
 
     private final PaymentTransactionRepository paymentTransactionRepository;
-    private final EscrowRepository escrowRepository;
+    private final ObjectMapper objectMapper;
+    private final DomainEventPublisher eventPublisher;
+
+    public VNPayServiceImpl(
+            PaymentTransactionRepository paymentTransactionRepository,
+            ObjectMapper objectMapper,
+            DomainEventPublisher eventPublisher) {
+        this.paymentTransactionRepository = paymentTransactionRepository;
+        this.objectMapper = objectMapper;
+        this.eventPublisher = eventPublisher;
+    }
 
     @Value("${vnpay.tmn-code}")
     private String tmnCode;
@@ -45,34 +57,26 @@ public class VNPayServiceImpl implements PaymentService {
 
     @Override
     @Transactional
-    public PaymentResponse createPayment(Long orderId, BigDecimal amount, String orderInfo, String ipAddress) {
-        // Transaction ref = orderId + timestamp để tránh trùng
+    public PaymentResponse createPayment(UUID orderId, BigDecimal amount, String orderInfo, String ipAddress) {
         String txnRef = orderId + "_" + System.currentTimeMillis();
 
-        // Tạo PaymentTransaction với status pending
         PaymentTransaction txn = new PaymentTransaction();
         txn.setOrderId(orderId);
-        txn.setProvider("vnpay");
-        txn.setTransactionRef(txnRef);
-        txn.setStatus("pending");
+        txn.setProvider(PaymentProviders.VNPAY);
+        txn.setProviderTransactionId(txnRef);
+        txn.setAmount(amount);
+        txn.setStatus(PaymentTransactionStatuses.PENDING);
         paymentTransactionRepository.save(txn);
 
-        // Tạo Escrow holding
-        Escrow escrow = new Escrow();
-        escrow.setOrderId(orderId);
-        escrow.setAmount(amount);
-        escrow.setStatus("holding");
-        escrowRepository.save(escrow);
-
-        // Build VNPay payment URL
         String paymentUrl = buildVNPayUrl(txnRef, amount, orderInfo, ipAddress);
 
         PaymentResponse response = new PaymentResponse();
         response.setId(txn.getId());
         response.setOrderId(orderId);
-        response.setProvider("vnpay");
+        response.setProvider(PaymentProviders.VNPAY);
         response.setTransactionRef(txnRef);
-        response.setStatus("pending");
+        response.setAmount(amount);
+        response.setStatus(PaymentTransactionStatuses.PENDING);
         response.setCreatedAt(txn.getCreatedAt());
         response.setPaymentUrl(paymentUrl);
         return response;
@@ -82,7 +86,6 @@ public class VNPayServiceImpl implements PaymentService {
     @Transactional
     public boolean handleVNPayCallback(Map<String, String> params) {
         String receivedHash = params.get("vnp_SecureHash");
-        // Remove hash fields before verifying
         Map<String, String> vnpParams = new TreeMap<>(params);
         vnpParams.remove("vnp_SecureHash");
         vnpParams.remove("vnp_SecureHashType");
@@ -97,37 +100,44 @@ public class VNPayServiceImpl implements PaymentService {
         String responseCode = params.get("vnp_ResponseCode");
         boolean success = "00".equals(responseCode);
 
-        PaymentTransaction txn = paymentTransactionRepository.findByTransactionRef(txnRef)
+        PaymentTransaction txn = paymentTransactionRepository.findByProviderTransactionId(txnRef)
                 .orElseThrow(() -> new AppException(PaymentErrorCode.PAYMENT_NOT_FOUND));
 
-        if (!"pending".equals(txn.getStatus())) {
+        if (!PaymentTransactionStatuses.PENDING.equals(txn.getStatus())) {
             log.warn("VNPay callback: transaction {} already processed", txnRef);
             throw new AppException(PaymentErrorCode.PAYMENT_ALREADY_PROCESSED);
         }
 
-        txn.setStatus(success ? "success" : "failed");
+        txn.setStatus(success ? PaymentTransactionStatuses.SUCCESS : PaymentTransactionStatuses.FAILED);
+        try {
+            txn.setRawResponse(objectMapper.writeValueAsString(params));
+        } catch (JsonProcessingException e) {
+            log.warn("Could not serialize VNPay raw_response", e);
+        }
         paymentTransactionRepository.save(txn);
 
-        // Cập nhật escrow
-        escrowRepository.findByOrderId(txn.getOrderId()).ifPresent(escrow -> {
-            escrow.setStatus(success ? "released" : "cancelled");
-            escrowRepository.save(escrow);
-        });
+        UUID orderId = txn.getOrderId();
+        eventPublisher.publish(new PaymentProcessedEvent(
+                orderId,
+                success,
+                PaymentProviders.VNPAY,
+                txn.getProviderTransactionId(),
+                txn.getId()));
 
-        log.info("VNPay payment {} for orderId={}: {}", txnRef, txn.getOrderId(), success ? "SUCCESS" : "FAILED");
+        log.info("VNPay payment {} for orderId={}: {}", txnRef, orderId, success ? "SUCCESS" : "FAILED");
         return success;
     }
 
     @Override
     @Transactional(readOnly = true)
-    public boolean isOrderPaid(Long orderId) {
+    public boolean isOrderPaid(UUID orderId) {
         return paymentTransactionRepository.findByOrderId(orderId).stream()
-                .anyMatch(txn -> "success".equals(txn.getStatus()));
+                .anyMatch(t -> PaymentTransactionStatuses.SUCCESS.equals(t.getStatus()));
     }
 
     @Override
     @Transactional(readOnly = true)
-    public PaymentResponse getPaymentByOrderId(Long orderId) {
+    public PaymentResponse getPaymentByOrderId(UUID orderId) {
         PaymentTransaction txn = paymentTransactionRepository.findByOrderId(orderId).stream()
                 .findFirst()
                 .orElseThrow(() -> new AppException(PaymentErrorCode.PAYMENT_NOT_FOUND));
@@ -135,13 +145,12 @@ public class VNPayServiceImpl implements PaymentService {
         response.setId(txn.getId());
         response.setOrderId(txn.getOrderId());
         response.setProvider(txn.getProvider());
-        response.setTransactionRef(txn.getTransactionRef());
+        response.setTransactionRef(txn.getProviderTransactionId());
+        response.setAmount(txn.getAmount());
         response.setStatus(txn.getStatus());
         response.setCreatedAt(txn.getCreatedAt());
         return response;
     }
-
-    // ---- VNPay Helper Methods ----
 
     private String buildVNPayUrl(String txnRef, BigDecimal amount, String orderInfo, String ipAddress) {
         Map<String, String> vnpParams = new TreeMap<>();
@@ -176,10 +185,13 @@ public class VNPayServiceImpl implements PaymentService {
             mac.init(new SecretKeySpec(key.getBytes(StandardCharsets.UTF_8), "HmacSHA512"));
             byte[] hash = mac.doFinal(data.getBytes(StandardCharsets.UTF_8));
             StringBuilder sb = new StringBuilder();
-            for (byte b : hash) sb.append(String.format("%02x", b));
+            for (byte b : hash) {
+                sb.append(String.format("%02x", b));
+            }
             return sb.toString();
         } catch (Exception e) {
-            throw new RuntimeException("Cannot compute HMAC-SHA512", e);
+            log.error("Cannot compute HMAC-SHA512", e);
+            throw new AppException(PaymentErrorCode.SIGNATURE_COMPUTATION_FAILED, "Không thể ký giao dịch");
         }
     }
 }

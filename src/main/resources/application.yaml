@@ -9,10 +9,18 @@ spring:
     username: ${SPRING_DATASOURCE_USERNAME}
     password: ${SPRING_DATASOURCE_PASSWORD}
     driver-class-name: org.postgresql.Driver
+    hikari:
+      data-source-properties:
+        options: "-c TimeZone=UTC"
+
+  flyway:
+    enabled: ${FLYWAY_ENABLED:true}
+    locations: classpath:db/migration
+    baseline-on-migrate: true
 
   jpa:
     hibernate:
-      ddl-auto: validate
+      ddl-auto: update # validate
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
@@ -33,6 +41,44 @@ spring:
           starttls:
             enable: true
 
+  servlet:
+    multipart:
+      max-file-size: 25MB
+      max-request-size: 30MB
+
+server:
+  port: ${APP_PORT:8080}
+
+logging:
+  pattern:
+    console: "%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX} %5p [%t] [%X{requestId:-}] %logger{40} - %m%n"
+    file: "%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX} %5p [%t] [%X{requestId:-}] %logger{40} - %m%n"
+
+app:
+  urls:
+    frontend-base: ${APP_FRONTEND_BASE_URL}
+    api-public-base: ${APP_PUBLIC_API_BASE_URL}
+    cors-allowed-origins:
+      - "http://localhost:3000"
+      - "http://localhost:3001"
+      - "${app.urls.frontend-base}"
+      - "http://localhost:5174"
+  logging:
+    service-method-timing: false
+  auth:
+    email-verification-path: ${APP_AUTH_EMAIL_VERIFICATION_PATH:/verify-email}
+    password-reset-path: ${APP_AUTH_PASSWORD_RESET_PATH:/reset-password}
+    email-verification-page-url: ${APP_EMAIL_VERIFICATION_PAGE_URL:${app.urls.frontend-base}${app.auth.email-verification-path}}
+    password-reset-page-url: ${APP_PASSWORD_RESET_PAGE_URL:${app.urls.frontend-base}${app.auth.password-reset-path}}
+  jwt:
+    secret: ${JWT_SECRET}
+    access-token-expiration-ms: ${JWT_ACCESS_EXPIRATION_MS}      # 15 minutes
+    refresh-token-expiration-days: ${JWT_REFRESH_EXPIRATION_DAYS}
+  mail:
+    from: ${MAIL_FROM}
+    brand-name: ${APP_MAIL_BRAND_NAME:UniShare}
+    otp-valid-minutes: ${APP_MAIL_OTP_VALID_MINUTES:10}
+
 cloudinary:
   cloud-name: ${CLOUDINARY_NAME}
   api-key: ${CLOUDINARY_API_KEY}
@@ -42,16 +88,41 @@ vnpay:
   tmn-code: ${VNP_TMN_CODE}
   hash-secret: ${VNP_HASH_SECRET}
   url: ${VNP_URL}
-  return-url: ${VNP_RETURN_URL}
+  # Mặc định: callback BE sau thanh toán — nối từ app.urls.api-public-base (chỉnh một chỗ). Ghi đè: VNP_RETURN_URL
+  return-url: ${VNP_RETURN_URL:${app.urls.api-public-base}/payments/vnpay/return}
 
+# OpenAPI / Swagger UI — tắt trên prod: springdoc.swagger-ui.enabled=false và springdoc.api-docs.enabled=false
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method
+    tags-sorter: alpha
+  show-actuator: false
+  packages-to-scan: com.unishare.api
 
-server:
-  port: ${APP_PORT}
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      probes:
+        enabled: true
 
-app:
-  jwt:
-    secret: ${JWT_SECRET}
-    access-token-expiration-ms: ${JWT_ACCESS_EXPIRATION_MS}      # 15 minutes
-    refresh-token-expiration-days: ${JWT_REFRESH_EXPIRATION_DAYS}
-  mail:
-    from: ${MAIL_FROM}
+---
+spring:
+  config:
+    activate:
+      on-profile: prod
+  jpa:
+    hibernate:
+      ddl-auto: validate
+
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false

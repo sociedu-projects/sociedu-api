@@ -1,12 +1,21 @@
 package com.unishare.api.infrastructure.mail;
 
 /**
- * Mail service interface for sending transactional emails.
- * Implementations must be non-blocking (async).
+ * Gửi email SMTP — chỉ được gọi từ {@link com.unishare.api.infrastructure.mail.listener.MailDispatchListener}
+ * (sau event, async) để request không chờ mail server.
  */
 public interface MailService {
 
-    void sendEmailVerification(String to, String otp);
+    void sendEmailVerification(String to, String verificationLink);
 
-    void sendPasswordReset(String to, String otp);
+    void sendPasswordReset(String to, String resetLink);
+
+    /** Trigger: {@link com.unishare.api.common.event.OrderPaidNotificationMailEvent}. */
+    void sendOrderPaidNotice(String toEmail, long orderId);
+
+    /** Trigger: {@link com.unishare.api.common.event.OrderPaymentFailedNotificationMailEvent}. */
+    void sendOrderPaymentFailedNotice(String toEmail, long orderId);
+
+    /** Trigger: {@link com.unishare.api.common.event.BookingCreatedNotificationMailEvent}. */
+    void sendBookingCreatedNotice(String buyerEmail, String mentorEmail, long bookingId, long orderId);
 }

@@ -22,7 +22,10 @@ dependencies {
 	implementation("org.springframework.boot:spring-boot-starter-data-jpa")
 	implementation("org.springframework.boot:spring-boot-starter-security")
 	implementation("org.springframework.boot:spring-boot-starter-mail")
+	implementation("org.springframework.boot:spring-boot-starter-thymeleaf")
 	implementation("org.springframework.boot:spring-boot-starter-validation")
+	implementation("org.springframework.boot:spring-boot-starter-aspectj")
+	implementation("org.springframework.boot:spring-boot-starter-actuator")
 
 	// JWT
 	implementation("io.jsonwebtoken:jjwt-api:0.12.6")
@@ -34,6 +37,12 @@ dependencies {
 
 	// File Upload support
 	implementation("commons-io:commons-io:2.15.1")
+
+	// OpenAPI / Swagger UI (Spring Boot 4 → springdoc 3.x)
+	implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.3")
+
+	implementation("org.flywaydb:flyway-core")
+	implementation("org.flywaydb:flyway-database-postgresql")
 
 	compileOnly("org.projectlombok:lombok")
 	annotationProcessor("org.projectlombok:lombok")
@@ -47,4 +56,5 @@ dependencies {
 
 tasks.withType<Test> {
 	useJUnitPlatform()
+	jvmArgs("-Duser.timezone=UTC")
 }

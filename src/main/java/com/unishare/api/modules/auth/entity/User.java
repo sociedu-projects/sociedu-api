@@ -1,5 +1,6 @@
 package com.unishare.api.modules.auth.entity;
 
+import com.unishare.api.common.constants.UserStatuses;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -9,8 +10,10 @@ import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 @Entity
 @Table(name = "users")
@@ -21,8 +24,8 @@ import java.util.List;
 public class User {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID id;
 
     @Column(unique = true)
     private String email;
@@ -36,7 +39,10 @@ public class User {
     @Column(name = "phone_verified")
     private Boolean phoneVerified = false;
 
-    private String status = "pending";
+    @Column(name = "date_of_birth")
+    private LocalDate dateOfBirth;
+
+    private String status = UserStatuses.PENDING;
 
     @CreatedDate
     @Column(name = "created_at", updatable = false)

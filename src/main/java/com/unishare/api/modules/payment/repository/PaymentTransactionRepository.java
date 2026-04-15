@@ -5,8 +5,10 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
-public interface PaymentTransactionRepository extends JpaRepository<PaymentTransaction, Long> {
-    List<PaymentTransaction> findByOrderId(Long orderId);
-    Optional<PaymentTransaction> findByTransactionRef(String transactionRef);
+public interface PaymentTransactionRepository extends JpaRepository<PaymentTransaction, UUID> {
+    List<PaymentTransaction> findByOrderId(UUID orderId);
+
+    Optional<PaymentTransaction> findByProviderTransactionId(String providerTransactionId);
 }

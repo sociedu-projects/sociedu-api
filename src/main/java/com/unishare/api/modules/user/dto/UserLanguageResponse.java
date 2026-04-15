@@ -2,10 +2,12 @@ package com.unishare.api.modules.user.dto;
 
 import lombok.Data;
 
+import java.util.UUID;
+
 @Data
 public class UserLanguageResponse {
-    private Long id;
-    private Long userId;
+    private UUID id;
+    private UUID userId;
     private String language;
     private String level;
 }

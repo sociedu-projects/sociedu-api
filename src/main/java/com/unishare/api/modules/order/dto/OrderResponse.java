@@ -4,18 +4,18 @@ import lombok.Data;
 
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.util.List;
+import java.util.UUID;
 
 @Data
 public class OrderResponse {
-    private Long id;
-    private Long buyerId;
-    private String type;
+    private UUID id;
+    private UUID buyerId;
+    /** service_package_versions.id */
+    private UUID serviceId;
     private String status;
     private BigDecimal totalAmount;
+    private Instant paidAt;
     private Instant createdAt;
-    private List<OrderItemResponse> items;
 
-    // VNPay payment URL - có giá trị khi order mới tạo (status=pending)
     private String paymentUrl;
 }

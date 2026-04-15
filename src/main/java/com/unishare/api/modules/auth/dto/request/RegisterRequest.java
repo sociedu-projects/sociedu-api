@@ -16,6 +16,11 @@ public class RegisterRequest {
     @Size(min = 8, message = "Mật khẩu phải có ít nhất 8 ký tự")
     private String password;
 
-    @NotBlank(message = "Họ tên không được để trống")
-    private String fullName;
+    @NotBlank(message = "Tên không được để trống")
+    @Size(max = 50, message = "Tên tối đa 50 ký tự")
+    private String firstName;
+
+    @NotBlank(message = "Họ không được để trống")
+    @Size(max = 50, message = "Họ tối đa 50 ký tự")
+    private String lastName;
 }

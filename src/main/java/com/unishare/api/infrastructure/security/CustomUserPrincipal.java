@@ -7,6 +7,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Custom UserDetails implementation holding userId, email, roles, and capabilities.
@@ -14,13 +15,13 @@ import java.util.List;
 @Getter
 public class CustomUserPrincipal implements UserDetails {
 
-    private final Long userId;
+    private final UUID userId;
     private final String email;
     private final String passwordHash;
     private final Collection<? extends GrantedAuthority> authorities;
     private final boolean enabled;
 
-    public CustomUserPrincipal(Long userId,
+    public CustomUserPrincipal(UUID userId,
                                String email,
                                String passwordHash,
                                List<String> roles,
@@ -31,7 +32,6 @@ public class CustomUserPrincipal implements UserDetails {
         this.passwordHash = passwordHash;
         this.enabled = enabled;
 
-        // Combine ROLE_ prefixed roles AND plain capability strings as authorities
         List<GrantedAuthority> auths = new java.util.ArrayList<>();
         roles.forEach(r -> auths.add(new SimpleGrantedAuthority("ROLE_" + r)));
         capabilities.forEach(c -> auths.add(new SimpleGrantedAuthority(c)));

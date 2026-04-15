@@ -10,13 +10,14 @@ import java.time.LocalDate;
 public class UserExperienceRequest {
     @NotBlank
     private String company;
-    
+
     @NotBlank
     private String position;
-    
+
     @NotNull
     private LocalDate startDate;
-    
+
     private LocalDate endDate;
+    private Boolean isCurrent;
     private String description;
 }

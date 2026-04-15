@@ -4,6 +4,7 @@ import com.unishare.api.modules.payment.dto.PaymentResponse;
 
 import java.math.BigDecimal;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * PaymentService - có thể tái sử dụng cho Document orders và Mentor bookings.
@@ -19,7 +20,7 @@ public interface PaymentService {
      * @param ipAddress IP của client
      * @return PaymentResponse chứa paymentUrl để redirect
      */
-    PaymentResponse createPayment(Long orderId, BigDecimal amount, String orderInfo, String ipAddress);
+    PaymentResponse createPayment(UUID orderId, BigDecimal amount, String orderInfo, String ipAddress);
 
     /**
      * Xử lý IPN/callback từ VNPay sau khi user thanh toán.
@@ -32,10 +33,10 @@ public interface PaymentService {
     /**
      * Kiểm tra thanh toán đơn hàng đã thành công chưa
      */
-    boolean isOrderPaid(Long orderId);
+    boolean isOrderPaid(UUID orderId);
 
     /**
      * Lấy PaymentResponse theo orderId
      */
-    PaymentResponse getPaymentByOrderId(Long orderId);
+    PaymentResponse getPaymentByOrderId(UUID orderId);
 }

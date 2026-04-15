@@ -6,6 +6,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.Instant;
+import java.util.UUID;
 
 @Entity
 @Table(name = "user_credentials")
@@ -16,7 +17,7 @@ public class UserCredential {
 
     @Id
     @Column(name = "user_id")
-    private Long userId;
+    private UUID userId;
 
     @MapsId
     @OneToOne(fetch = FetchType.LAZY)

@@ -5,9 +5,12 @@ import com.unishare.api.modules.auth.entity.OtpType;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;
+import java.util.UUID;
 
-public interface OtpTokenRepository extends JpaRepository<OtpToken, Long> {
+public interface OtpTokenRepository extends JpaRepository<OtpToken, UUID> {
 
     Optional<OtpToken> findTopByUserIdAndTypeAndUsedFalseOrderByCreatedAtDesc(
-            Long userId, OtpType type);
+            UUID userId, OtpType type);
+
+    Optional<OtpToken> findByCodeAndTypeAndUsedFalse(String code, OtpType type);
 }

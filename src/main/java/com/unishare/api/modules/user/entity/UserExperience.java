@@ -6,6 +6,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.LocalDate;
+import java.util.UUID;
 
 @Entity
 @Table(name = "user_experiences")
@@ -15,11 +16,11 @@ import java.time.LocalDate;
 public class UserExperience {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID id;
 
     @Column(name = "user_id", nullable = false)
-    private Long userId;
+    private UUID userId;
 
     private String company;
     private String position;
@@ -30,6 +31,16 @@ public class UserExperience {
     @Column(name = "end_date")
     private LocalDate endDate;
 
+    @Column(name = "is_current")
+    private Boolean isCurrent = false;
+
     @Column(columnDefinition = "TEXT")
     private String description;
+
+    @PrePersist
+    public void prePersist() {
+        if (isCurrent == null) {
+            isCurrent = false;
+        }
+    }
 }

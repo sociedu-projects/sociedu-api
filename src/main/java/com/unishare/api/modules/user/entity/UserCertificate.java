@@ -6,6 +6,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.LocalDate;
+import java.util.UUID;
 
 @Entity
 @Table(name = "user_certificates")
@@ -15,11 +16,11 @@ import java.time.LocalDate;
 public class UserCertificate {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID id;
 
     @Column(name = "user_id", nullable = false)
-    private Long userId;
+    private UUID userId;
 
     private String name;
     private String organization;
@@ -30,6 +31,9 @@ public class UserCertificate {
     @Column(name = "expiration_date")
     private LocalDate expirationDate;
 
-    @Column(name = "credential_url", columnDefinition = "TEXT")
-    private String credentialUrl;
+    @Column(name = "credential_file_id")
+    private UUID credentialFileId;
+
+    @Column(columnDefinition = "TEXT")
+    private String description;
 }

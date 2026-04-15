@@ -5,6 +5,10 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.time.Instant;
+import java.time.LocalDate;
+import java.util.UUID;
+
 @Entity
 @Table(name = "user_educations")
 @Getter
@@ -13,21 +17,50 @@ import lombok.Setter;
 public class UserEducation {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID id;
 
     @Column(name = "user_id", nullable = false)
-    private Long userId;
+    private UUID userId;
 
-    private String university;
-    private String major;
+    @Column(name = "university_id")
+    private UUID universityId;
 
-    @Column(name = "start_year")
-    private Integer startYear;
+    @Column(name = "major_id")
+    private UUID majorId;
 
-    @Column(name = "end_year")
-    private Integer endYear;
+    private String degree;
+
+    @Column(name = "start_date")
+    private LocalDate startDate;
+
+    @Column(name = "end_date")
+    private LocalDate endDate;
+
+    @Column(name = "is_current")
+    private Boolean isCurrent = false;
 
     @Column(columnDefinition = "TEXT")
     private String description;
+
+    @Column(name = "created_at")
+    private Instant createdAt;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "university_id", insertable = false, updatable = false)
+    private University university;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "major_id", insertable = false, updatable = false)
+    private FieldOfStudy majorField;
+
+    @PrePersist
+    public void prePersist() {
+        if (createdAt == null) {
+            createdAt = Instant.now();
+        }
+        if (isCurrent == null) {
+            isCurrent = false;
+        }
+    }
 }

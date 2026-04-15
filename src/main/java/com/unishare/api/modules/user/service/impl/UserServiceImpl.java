@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -28,15 +29,19 @@ public class UserServiceImpl implements UserService {
     // Profile
     @Override
     @Transactional(readOnly = true)
-    public UserProfileResponse getProfile(Long userId) {
-        UserProfile profile = profileRepository.findById(userId)
-                .orElseThrow(() -> new AppException(UserErrorCode.PROFILE_NOT_FOUND));
-        return userMapper.toResponse(profile);
+    public UserProfileResponse getProfile(UUID userId) {
+        return profileRepository.findById(userId)
+                .map(userMapper::toResponse)
+                .orElseGet(() -> {
+                    UserProfileResponse empty = new UserProfileResponse();
+                    empty.setUserId(userId);
+                    return empty;
+                });
     }
 
     @Override
     @Transactional
-    public UserProfileResponse updateProfile(Long userId, UserProfileRequest request) {
+    public UserProfileResponse updateProfile(UUID userId, UserProfileRequest request) {
         UserProfile profile = profileRepository.findById(userId)
                 .orElse(new UserProfile()); // Support creating profile on first update
         
@@ -52,7 +57,7 @@ public class UserServiceImpl implements UserService {
     // Education
     @Override
     @Transactional(readOnly = true)
-    public List<UserEducationResponse> getEducations(Long userId) {
+    public List<UserEducationResponse> getEducations(UUID userId) {
         return educationRepository.findByUserId(userId).stream()
                 .map(userMapper::toResponse)
                 .collect(Collectors.toList());
@@ -60,7 +65,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
-    public UserEducationResponse addEducation(Long userId, UserEducationRequest request) {
+    public UserEducationResponse addEducation(UUID userId, UserEducationRequest request) {
         UserEducation education = userMapper.toEntity(request, userId);
         UserEducation saved = educationRepository.save(education);
         return userMapper.toResponse(saved);
@@ -68,24 +73,28 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
-    public UserEducationResponse updateEducation(Long userId, Long educationId, UserEducationRequest request) {
+    public UserEducationResponse updateEducation(UUID userId, UUID educationId, UserEducationRequest request) {
         UserEducation education = educationRepository.findById(educationId)
                 .filter(e -> e.getUserId().equals(userId))
                 .orElseThrow(() -> new AppException(UserErrorCode.EDUCATION_NOT_FOUND));
         
-        education.setUniversity(request.getUniversity());
-        education.setMajor(request.getMajor());
-        education.setStartYear(request.getStartYear());
-        education.setEndYear(request.getEndYear());
+        education.setUniversityId(request.getUniversityId());
+        education.setMajorId(request.getMajorId());
+        education.setDegree(request.getDegree());
+        education.setStartDate(request.getStartDate());
+        education.setEndDate(request.getEndDate());
+        if (request.getIsCurrent() != null) {
+            education.setIsCurrent(request.getIsCurrent());
+        }
         education.setDescription(request.getDescription());
-        
+
         UserEducation saved = educationRepository.save(education);
         return userMapper.toResponse(saved);
     }
 
     @Override
     @Transactional
-    public void deleteEducation(Long userId, Long educationId) {
+    public void deleteEducation(UUID userId, UUID educationId) {
         UserEducation education = educationRepository.findById(educationId)
                 .filter(e -> e.getUserId().equals(userId))
                 .orElseThrow(() -> new AppException(UserErrorCode.EDUCATION_NOT_FOUND));
@@ -95,7 +104,7 @@ public class UserServiceImpl implements UserService {
     // Language
     @Override
     @Transactional(readOnly = true)
-    public List<UserLanguageResponse> getLanguages(Long userId) {
+    public List<UserLanguageResponse> getLanguages(UUID userId) {
         return languageRepository.findByUserId(userId).stream()
                 .map(userMapper::toResponse)
                 .collect(Collectors.toList());
@@ -103,7 +112,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
-    public UserLanguageResponse addLanguage(Long userId, UserLanguageRequest request) {
+    public UserLanguageResponse addLanguage(UUID userId, UserLanguageRequest request) {
         UserLanguage language = userMapper.toEntity(request, userId);
         UserLanguage saved = languageRepository.save(language);
         return userMapper.toResponse(saved);
@@ -111,7 +120,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
-    public UserLanguageResponse updateLanguage(Long userId, Long languageId, UserLanguageRequest request) {
+    public UserLanguageResponse updateLanguage(UUID userId, UUID languageId, UserLanguageRequest request) {
         UserLanguage language = languageRepository.findById(languageId)
                 .filter(l -> l.getUserId().equals(userId))
                 .orElseThrow(() -> new AppException(UserErrorCode.LANGUAGE_NOT_FOUND));
@@ -125,7 +134,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
-    public void deleteLanguage(Long userId, Long languageId) {
+    public void deleteLanguage(UUID userId, UUID languageId) {
         UserLanguage language = languageRepository.findById(languageId)
                 .filter(l -> l.getUserId().equals(userId))
                 .orElseThrow(() -> new AppException(UserErrorCode.LANGUAGE_NOT_FOUND));
@@ -135,7 +144,7 @@ public class UserServiceImpl implements UserService {
     // Experience
     @Override
     @Transactional(readOnly = true)
-    public List<UserExperienceResponse> getExperiences(Long userId) {
+    public List<UserExperienceResponse> getExperiences(UUID userId) {
         return experienceRepository.findByUserId(userId).stream()
                 .map(userMapper::toResponse)
                 .collect(Collectors.toList());
@@ -143,7 +152,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
-    public UserExperienceResponse addExperience(Long userId, UserExperienceRequest request) {
+    public UserExperienceResponse addExperience(UUID userId, UserExperienceRequest request) {
         UserExperience experience = userMapper.toEntity(request, userId);
         UserExperience saved = experienceRepository.save(experience);
         return userMapper.toResponse(saved);
@@ -151,7 +160,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
-    public UserExperienceResponse updateExperience(Long userId, Long experienceId, UserExperienceRequest request) {
+    public UserExperienceResponse updateExperience(UUID userId, UUID experienceId, UserExperienceRequest request) {
         UserExperience experience = experienceRepository.findById(experienceId)
                 .filter(e -> e.getUserId().equals(userId))
                 .orElseThrow(() -> new AppException(UserErrorCode.EXPERIENCE_NOT_FOUND));
@@ -160,15 +169,18 @@ public class UserServiceImpl implements UserService {
         experience.setPosition(request.getPosition());
         experience.setStartDate(request.getStartDate());
         experience.setEndDate(request.getEndDate());
+        if (request.getIsCurrent() != null) {
+            experience.setIsCurrent(request.getIsCurrent());
+        }
         experience.setDescription(request.getDescription());
-        
+
         UserExperience saved = experienceRepository.save(experience);
         return userMapper.toResponse(saved);
     }
 
     @Override
     @Transactional
-    public void deleteExperience(Long userId, Long experienceId) {
+    public void deleteExperience(UUID userId, UUID experienceId) {
         UserExperience experience = experienceRepository.findById(experienceId)
                 .filter(e -> e.getUserId().equals(userId))
                 .orElseThrow(() -> new AppException(UserErrorCode.EXPERIENCE_NOT_FOUND));
@@ -178,7 +190,7 @@ public class UserServiceImpl implements UserService {
     // Certificate
     @Override
     @Transactional(readOnly = true)
-    public List<UserCertificateResponse> getCertificates(Long userId) {
+    public List<UserCertificateResponse> getCertificates(UUID userId) {
         return certificateRepository.findByUserId(userId).stream()
                 .map(userMapper::toResponse)
                 .collect(Collectors.toList());
@@ -186,7 +198,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
-    public UserCertificateResponse addCertificate(Long userId, UserCertificateRequest request) {
+    public UserCertificateResponse addCertificate(UUID userId, UserCertificateRequest request) {
         UserCertificate certificate = userMapper.toEntity(request, userId);
         UserCertificate saved = certificateRepository.save(certificate);
         return userMapper.toResponse(saved);
@@ -194,7 +206,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
-    public UserCertificateResponse updateCertificate(Long userId, Long certificateId, UserCertificateRequest request) {
+    public UserCertificateResponse updateCertificate(UUID userId, UUID certificateId, UserCertificateRequest request) {
         UserCertificate certificate = certificateRepository.findById(certificateId)
                 .filter(c -> c.getUserId().equals(userId))
                 .orElseThrow(() -> new AppException(UserErrorCode.CERTIFICATE_NOT_FOUND));
@@ -203,15 +215,16 @@ public class UserServiceImpl implements UserService {
         certificate.setOrganization(request.getOrganization());
         certificate.setIssueDate(request.getIssueDate());
         certificate.setExpirationDate(request.getExpirationDate());
-        certificate.setCredentialUrl(request.getCredentialUrl());
-        
+        certificate.setCredentialFileId(request.getCredentialFileId());
+        certificate.setDescription(request.getDescription());
+
         UserCertificate saved = certificateRepository.save(certificate);
         return userMapper.toResponse(saved);
     }
 
     @Override
     @Transactional
-    public void deleteCertificate(Long userId, Long certificateId) {
+    public void deleteCertificate(UUID userId, UUID certificateId) {
         UserCertificate certificate = certificateRepository.findById(certificateId)
                 .filter(c -> c.getUserId().equals(userId))
                 .orElseThrow(() -> new AppException(UserErrorCode.CERTIFICATE_NOT_FOUND));

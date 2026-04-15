@@ -13,9 +13,9 @@ public interface AuthService {
 
     void logout(RefreshTokenRequest request);
 
-    void sendVerificationEmail(Long userId);
+    void sendVerificationEmail(String email);
 
-    void verifyEmail(Long userId, String code);
+    void verifyEmail(String token);
 
     void forgotPassword(ForgotPasswordRequest request);
 

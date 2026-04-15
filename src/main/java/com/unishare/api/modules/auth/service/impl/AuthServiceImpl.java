@@ -1,22 +1,32 @@
 package com.unishare.api.modules.auth.service.impl;
 
+import com.unishare.api.common.constants.Roles;
+import com.unishare.api.common.constants.UserStatuses;
 import com.unishare.api.common.dto.AppException;
+import com.unishare.api.infrastructure.event.DomainEventPublisher;
+import com.unishare.api.common.event.EmailVerificationMailEvent;
+import com.unishare.api.common.event.PasswordResetMailEvent;
 import com.unishare.api.modules.auth.dto.request.*;
 import com.unishare.api.modules.auth.dto.response.AuthResponse;
 import com.unishare.api.modules.auth.exception.AuthErrorCode;
-import com.unishare.api.infrastructure.mail.MailService;
 import com.unishare.api.infrastructure.security.JwtService;
 import com.unishare.api.modules.auth.entity.*;
 import com.unishare.api.modules.auth.repository.*;
+import com.unishare.api.modules.user.entity.UserProfile;
+import com.unishare.api.modules.user.repository.UserProfileRepository;
 import com.unishare.api.modules.auth.service.AuthService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.time.Instant;
+import java.util.HexFormat;
 import java.util.List;
 
 @Slf4j
@@ -26,6 +36,13 @@ public class AuthServiceImpl implements AuthService {
 
     private static final int OTP_TTL_MINUTES = 10;
     private static final SecureRandom RANDOM = new SecureRandom();
+    private static final HexFormat HEX = HexFormat.of();
+
+    @Value("${app.auth.email-verification-page-url}")
+    private String emailVerificationPageUrl;
+
+    @Value("${app.auth.password-reset-page-url}")
+    private String passwordResetPageUrl;
 
     private final UserRepository userRepository;
     private final UserCredentialRepository userCredentialRepository;
@@ -34,7 +51,8 @@ public class AuthServiceImpl implements AuthService {
     private final OtpTokenRepository otpTokenRepository;
     private final JwtService jwtService;
     private final PasswordEncoder passwordEncoder;
-    private final MailService mailService;
+    private final DomainEventPublisher eventPublisher;
+    private final UserProfileRepository userProfileRepository;
 
     // ------------------------------------------------------------------ register
     @Override
@@ -48,14 +66,14 @@ public class AuthServiceImpl implements AuthService {
         User user = new User();
         user.setEmail(request.getEmail());
         user.setEmailVerified(false);
-        user.setStatus("pending");
+        user.setStatus(UserStatuses.PENDING);
 
         UserCredential credential = new UserCredential();
         credential.setPasswordHash(passwordEncoder.encode(request.getPassword()));
         user.setCredential(credential);
 
-        Role buyerRole = roleRepository.findByName("BUYER")
-                .orElseThrow(() -> new AppException(AuthErrorCode.USER_NOT_FOUND, "Role BUYER not found"));
+        Role buyerRole = roleRepository.findByName(Roles.USER)
+                .orElseThrow(() -> new AppException(AuthErrorCode.USER_NOT_FOUND, "Role USER not found"));
 
         UserRole userRole = new UserRole();
         userRole.setRole(buyerRole);
@@ -64,10 +82,16 @@ public class AuthServiceImpl implements AuthService {
 
         user = userRepository.save(user);
 
-//        sendVerificationEmail(user.getId());
+        UserProfile profile = new UserProfile();
+        profile.setUserId(user.getId());
+        profile.setFirstName(request.getFirstName().trim());
+        profile.setLastName(request.getLastName().trim());
+        userProfileRepository.save(profile);
+
+        sendVerificationLink(user);
         log.info("[Auth] Registered user: {}", user.getEmail());
 
-        return buildAuthResponse(user, List.of("BUYER"));
+        return buildRegisterResponse(user, profile);
     }
 
     // ------------------------------------------------------------------ login
@@ -92,7 +116,7 @@ public class AuthServiceImpl implements AuthService {
                     "Vui lòng xác minh email trước khi đăng nhập");
         }
 
-        if (!"active".equalsIgnoreCase(user.getStatus())) {
+        if (!UserStatuses.ACTIVE.equalsIgnoreCase(user.getStatus())) {
             throw new AppException(AuthErrorCode.ACCOUNT_DISABLED, "Tài khoản đã bị vô hiệu hóa");
         }
 
@@ -100,8 +124,10 @@ public class AuthServiceImpl implements AuthService {
                 .map(ur -> ur.getRole().getName())
                 .toList();
 
+        UserProfile profile = userProfileRepository.findById(user.getId()).orElse(null);
+
         log.info("[Auth] User logged in: {}", user.getEmail());
-        return buildAuthResponse(user, roles);
+        return buildAuthResponse(user, roles, profile);
     }
 
     // ------------------------------------------------------------------ refreshToken
@@ -121,9 +147,24 @@ public class AuthServiceImpl implements AuthService {
         User user = userRepository.findById(stored.getUserId())
                 .orElseThrow(() -> new AppException(AuthErrorCode.USER_NOT_FOUND, "Người dùng không tồn tại"));
 
+        if (!Boolean.TRUE.equals(user.getEmailVerified())) {
+            stored.setRevoked(true);
+            refreshTokenRepository.save(stored);
+            throw new AppException(AuthErrorCode.EMAIL_NOT_VERIFIED,
+                    "Vui lòng xác minh email trước khi sử dụng phiên đăng nhập");
+        }
+
+        if (!UserStatuses.ACTIVE.equalsIgnoreCase(user.getStatus())) {
+            stored.setRevoked(true);
+            refreshTokenRepository.save(stored);
+            throw new AppException(AuthErrorCode.ACCOUNT_DISABLED, "Tài khoản đã bị vô hiệu hóa");
+        }
+
         List<String> roles = user.getUserRoles().stream()
                 .map(ur -> ur.getRole().getName())
                 .toList();
+
+        UserProfile profile = userProfileRepository.findById(user.getId()).orElse(null);
 
         String newAccessToken = jwtService.generateAccessToken(user.getId(), roles);
 
@@ -134,6 +175,8 @@ public class AuthServiceImpl implements AuthService {
                 .expiresIn(jwtService.getAccessTokenExpirationSeconds())
                 .userId(user.getId())
                 .email(user.getEmail())
+                .firstName(profile != null ? profile.getFirstName() : null)
+                .lastName(profile != null ? profile.getLastName() : null)
                 .roles(roles)
                 .build();
     }
@@ -153,41 +196,53 @@ public class AuthServiceImpl implements AuthService {
     // ------------------------------------------------------------------ sendVerificationEmail
     @Override
     @Transactional
-    public void sendVerificationEmail(Long userId) {
-        String otp = generateOtp();
-        OtpToken otpToken = OtpToken.of(userId, otp, OtpType.EMAIL_VERIFY, OTP_TTL_MINUTES);
-        otpTokenRepository.save(otpToken);
+    public void sendVerificationEmail(String email) {
+        userRepository.findByEmail(email).ifPresent(user -> {
+            if (Boolean.TRUE.equals(user.getEmailVerified())) {
+                log.debug("[Auth] Resend verification skipped: already verified userId={}", user.getId());
+                return;
+            }
+            sendVerificationLink(user);
+        });
+    }
 
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new AppException(AuthErrorCode.USER_NOT_FOUND, "Người dùng không tồn tại"));
-        mailService.sendEmailVerification(user.getEmail(), otp);
-        log.info("[Auth] Verification email sent to userId={}", userId);
+    private void sendVerificationLink(User user) {
+        String token = generateSecureToken();
+        OtpToken otpToken = OtpToken.of(user.getId(), token, OtpType.EMAIL_VERIFY, OTP_TTL_MINUTES);
+        otpTokenRepository.save(otpToken);
+        String link = appendTokenQuery(emailVerificationPageUrl, token);
+        eventPublisher.publish(new EmailVerificationMailEvent(user.getEmail(), link));
+        log.info("[Auth] Verification email queued for userId={}", user.getId());
     }
 
     // ------------------------------------------------------------------ verifyEmail
     @Override
     @Transactional
-    public void verifyEmail(Long userId, String code) {
+    public void verifyEmail(String token) {
         OtpToken otp = otpTokenRepository
-                .findTopByUserIdAndTypeAndUsedFalseOrderByCreatedAtDesc(userId, OtpType.EMAIL_VERIFY)
-                .orElseThrow(() -> new AppException(AuthErrorCode.INVALID_OTP, "Mã OTP không hợp lệ"));
+                .findByCodeAndTypeAndUsedFalse(token, OtpType.EMAIL_VERIFY)
+                .orElseThrow(() -> new AppException(AuthErrorCode.INVALID_OTP, "Liên kết xác minh không hợp lệ hoặc đã được sử dụng"));
 
         if (otp.isExpired()) {
-            throw new AppException(AuthErrorCode.OTP_EXPIRED, "Mã OTP đã hết hạn");
+            throw new AppException(AuthErrorCode.OTP_EXPIRED, "Liên kết xác minh đã hết hạn");
         }
-        if (!otp.getCode().equals(code)) {
-            throw new AppException(AuthErrorCode.INVALID_OTP, "Mã OTP không đúng");
+
+        User user = userRepository.findById(otp.getUserId())
+                .orElseThrow(() -> new AppException(AuthErrorCode.INVALID_OTP, "Liên kết xác minh không hợp lệ"));
+
+        if (Boolean.TRUE.equals(user.getEmailVerified())) {
+            otp.setUsed(true);
+            otpTokenRepository.save(otp);
+            return;
         }
 
         otp.setUsed(true);
         otpTokenRepository.save(otp);
 
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new AppException(AuthErrorCode.USER_NOT_FOUND, "Người dùng không tồn tại"));
         user.setEmailVerified(true);
-        user.setStatus("active");
+        user.setStatus(UserStatuses.ACTIVE);
         userRepository.save(user);
-        log.info("[Auth] Email verified for userId={}", userId);
+        log.info("[Auth] Email verified for userId={}", user.getId());
     }
 
     // ------------------------------------------------------------------ forgotPassword
@@ -196,11 +251,12 @@ public class AuthServiceImpl implements AuthService {
     public void forgotPassword(ForgotPasswordRequest request) {
         // Silently ignore unknown emails to prevent user enumeration
         userRepository.findByEmail(request.getEmail()).ifPresent(user -> {
-            String otp = generateOtp();
-            OtpToken otpToken = OtpToken.of(user.getId(), otp, OtpType.PASSWORD_RESET, OTP_TTL_MINUTES);
+            String token = generateSecureToken();
+            OtpToken otpToken = OtpToken.of(user.getId(), token, OtpType.PASSWORD_RESET, OTP_TTL_MINUTES);
             otpTokenRepository.save(otpToken);
-            mailService.sendPasswordReset(user.getEmail(), otp);
-            log.info("[Auth] Password reset OTP sent to userId={}", user.getId());
+            String link = appendTokenQuery(passwordResetPageUrl, token);
+            eventPublisher.publish(new PasswordResetMailEvent(user.getEmail(), link));
+            log.info("[Auth] Password reset email queued for userId={}", user.getId());
         });
     }
 
@@ -208,19 +264,16 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional
     public void resetPassword(ResetPasswordRequest request) {
-        User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new AppException(AuthErrorCode.USER_NOT_FOUND, "Người dùng không tồn tại"));
-
         OtpToken otp = otpTokenRepository
-                .findTopByUserIdAndTypeAndUsedFalseOrderByCreatedAtDesc(user.getId(), OtpType.PASSWORD_RESET)
-                .orElseThrow(() -> new AppException(AuthErrorCode.INVALID_OTP, "Mã OTP không hợp lệ"));
+                .findByCodeAndTypeAndUsedFalse(request.getToken(), OtpType.PASSWORD_RESET)
+                .orElseThrow(() -> new AppException(AuthErrorCode.INVALID_OTP, "Liên kết đặt lại mật khẩu không hợp lệ hoặc đã được sử dụng"));
 
         if (otp.isExpired()) {
-            throw new AppException(AuthErrorCode.OTP_EXPIRED, "Mã OTP đã hết hạn");
+            throw new AppException(AuthErrorCode.OTP_EXPIRED, "Liên kết đặt lại mật khẩu đã hết hạn");
         }
-        if (!otp.getCode().equals(request.getCode())) {
-            throw new AppException(AuthErrorCode.INVALID_OTP, "Mã OTP không đúng");
-        }
+
+        User user = userRepository.findById(otp.getUserId())
+                .orElseThrow(() -> new AppException(AuthErrorCode.USER_NOT_FOUND, "Người dùng không tồn tại"));
 
         otp.setUsed(true);
         otpTokenRepository.save(otp);
@@ -237,7 +290,7 @@ public class AuthServiceImpl implements AuthService {
     }
 
     // ------------------------------------------------------------------ helpers
-    private AuthResponse buildAuthResponse(User user, List<String> roles) {
+    private AuthResponse buildAuthResponse(User user, List<String> roles, UserProfile profile) {
         String accessToken = jwtService.generateAccessToken(user.getId(), roles);
         String rawRefreshToken = jwtService.generateRefreshToken();
 
@@ -252,12 +305,40 @@ public class AuthServiceImpl implements AuthService {
                 .expiresIn(jwtService.getAccessTokenExpirationSeconds())
                 .userId(user.getId())
                 .email(user.getEmail())
+                .firstName(profile != null ? profile.getFirstName() : null)
+                .lastName(profile != null ? profile.getLastName() : null)
                 .roles(roles)
                 .build();
     }
 
-    private String generateOtp() {
-        return String.format("%06d", RANDOM.nextInt(1_000_000));
+    private AuthResponse buildRegisterResponse(User user, UserProfile profile) {
+        List<String> roles = user.getUserRoles().stream()
+                .map(ur -> ur.getRole().getName())
+                .toList();
+
+        return AuthResponse.builder()
+                .accessToken(null)
+                .refreshToken(null)
+                .tokenType("Bearer")
+                .expiresIn(null)
+                .userId(user.getId())
+                .email(user.getEmail())
+                .firstName(profile != null ? profile.getFirstName() : null)
+                .lastName(profile != null ? profile.getLastName() : null)
+                .roles(roles)
+                .build();
+    }
+
+    private String generateSecureToken() {
+        byte[] bytes = new byte[32];
+        RANDOM.nextBytes(bytes);
+        return HEX.formatHex(bytes);
+    }
+
+    private String appendTokenQuery(String pageUrl, String token) {
+        String enc = URLEncoder.encode(token, StandardCharsets.UTF_8);
+        String sep = pageUrl.contains("?") ? "&" : "?";
+        return pageUrl + sep + "token=" + enc;
     }
 }
 

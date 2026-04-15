@@ -7,11 +7,8 @@ import lombok.Data;
 @Data
 public class ResetPasswordRequest {
 
-    @NotBlank(message = "Email không được để trống")
-    private String email;
-
-    @NotBlank(message = "Mã OTP không được để trống")
-    private String code;
+    @NotBlank(message = "Token không được để trống")
+    private String token;
 
     @NotBlank(message = "Mật khẩu mới không được để trống")
     @Size(min = 8, message = "Mật khẩu phải có ít nhất 8 ký tự")

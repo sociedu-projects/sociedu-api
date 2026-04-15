@@ -1,5 +1,7 @@
 package com.unishare.api.config;
 
+import com.unishare.api.infrastructure.security.ApiAccessDeniedHandler;
+import com.unishare.api.infrastructure.security.ApiAuthenticationEntryPoint;
 import com.unishare.api.infrastructure.security.JwtAuthenticationFilter;
 import com.unishare.api.infrastructure.security.UserDetailsServiceImpl;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +26,8 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.Arrays;
+import java.util.List;
+import java.util.Objects;
 
 
 @Configuration
@@ -34,6 +38,9 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final UserDetailsServiceImpl userDetailsService;
+    private final AppUrlsProperties appUrls;
+    private final ApiAuthenticationEntryPoint apiAuthenticationEntryPoint;
+    private final ApiAccessDeniedHandler apiAccessDeniedHandler;
 
     private static final String[] PUBLIC_ENDPOINTS = {
             "/api/v1/auth/register",
@@ -41,11 +48,17 @@ public class SecurityConfig {
             "/api/v1/auth/refresh",
             "/api/v1/auth/forgot-password",
             "/api/v1/auth/reset-password",
+            "/api/v1/auth/verify-email",
+            "/api/v1/auth/resend-verification",
+
+            "/api/v1/payments/vnpay/**",
 
             "/v3/api-docs/**",
             "/swagger-ui/**",
             "/swagger-ui.html",
-            "/error"
+            "/error",
+
+            "/actuator/health"
     };
 
     @Bean
@@ -57,7 +70,14 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers(PUBLIC_ENDPOINTS).permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/users/*/profile").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/mentors").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/mentors/*").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/mentors/*/packages").permitAll()
                         .anyRequest().authenticated())
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint(apiAuthenticationEntryPoint)
+                        .accessDeniedHandler(apiAccessDeniedHandler))
                 .authenticationProvider(authenticationProvider())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
@@ -85,16 +105,17 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        // Allow common local dev origins
-        configuration.setAllowedOrigins(Arrays.asList(
-                "http://localhost:3000",
-                "http://localhost:3001",
-                "http://localhost:5173",
-                "http://localhost:5174"
-        ));
+        List<String> origins = Objects.requireNonNullElse(appUrls.corsAllowedOrigins(), List.of());
+        configuration.setAllowedOrigins(origins);
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "Cache-Control", "X-Requested-With"));
+        configuration.setAllowedHeaders(Arrays.asList(
+                "Authorization",
+                "Content-Type",
+                "Cache-Control",
+                "X-Requested-With",
+                "X-Request-Id"));
         configuration.setAllowCredentials(true);
+        configuration.setExposedHeaders(Arrays.asList("X-Request-Id"));
         configuration.setMaxAge(3600L); // 1 hour
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();

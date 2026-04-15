@@ -1,5 +1,6 @@
 package com.unishare.api.infrastructure.security;
 
+import com.unishare.api.common.constants.UserStatuses;
 import com.unishare.api.modules.auth.repository.CapabilityRepository;
 import com.unishare.api.modules.auth.repository.UserCredentialRepository;
 import com.unishare.api.modules.auth.repository.UserRepository;
@@ -14,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.UUID;
 
 @Slf4j
 @Service
@@ -24,9 +26,6 @@ public class UserDetailsServiceImpl implements UserDetailsService {
     private final UserCredentialRepository userCredentialRepository;
     private final CapabilityRepository capabilityRepository;
 
-    /**
-     * Load by email — used by Spring Security's DaoAuthenticationProvider.
-     */
     @Override
     @Transactional(readOnly = true)
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
@@ -35,11 +34,8 @@ public class UserDetailsServiceImpl implements UserDetailsService {
         return buildPrincipal(user);
     }
 
-    /**
-     * Load by userId — used by JwtAuthenticationFilter after token validation.
-     */
     @Transactional(readOnly = true)
-    public UserDetails loadUserById(Long userId) {
+    public UserDetails loadUserById(UUID userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found: " + userId));
         return buildPrincipal(user);
@@ -55,7 +51,8 @@ public class UserDetailsServiceImpl implements UserDetailsService {
 
         List<String> capabilities = capabilityRepository.findCapabilityNamesByUserId(user.getId());
 
-        boolean enabled = "active".equalsIgnoreCase(user.getStatus());
+        boolean enabled = UserStatuses.ACTIVE.equalsIgnoreCase(user.getStatus())
+                && Boolean.TRUE.equals(user.getEmailVerified());
 
         return new CustomUserPrincipal(
                 user.getId(),

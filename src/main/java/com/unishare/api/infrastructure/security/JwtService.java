@@ -35,11 +35,12 @@ public class JwtService {
 
     /**
      * Generate a signed Access Token containing userId and roles.
+     * Subject is the canonical string form of {@link UUID}.
      */
-    public String generateAccessToken(Long userId, List<String> roles) {
+    public String generateAccessToken(UUID userId, List<String> roles) {
         Instant now = Instant.now();
         return Jwts.builder()
-                .subject(String.valueOf(userId))
+                .subject(userId.toString())
                 .claim("roles", roles)
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(now.plusMillis(accessTokenExpirationMs)))
@@ -73,13 +74,13 @@ public class JwtService {
      *
      * @throws JwtException if invalid or expired
      */
-    public Long extractUserId(String token) {
+    public UUID extractUserId(String token) {
         Claims claims = Jwts.parser()
                 .verifyWith(secretKey)
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();
-        return Long.parseLong(claims.getSubject());
+        return UUID.fromString(claims.getSubject());
     }
 
     /**
