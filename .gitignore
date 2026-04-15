@@ -27,7 +27,6 @@ out/
 !**/src/test/**/out/
 
 .env
-init/
 
 ### NetBeans ###
 /nbproject/private/
