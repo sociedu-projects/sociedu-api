@@ -20,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -33,8 +34,8 @@ public class ChatServiceImpl implements ChatService {
 
     @Override
     @Transactional
-    public ConversationResponse createConversation(Long creatorUserId, CreateConversationRequest request) {
-        Set<Long> users = new LinkedHashSet<>(request.getParticipantUserIds());
+    public ConversationResponse createConversation(UUID creatorUserId, CreateConversationRequest request) {
+        Set<UUID> users = new LinkedHashSet<>(request.getParticipantUserIds());
         users.add(creatorUserId);
 
         Conversation c = new Conversation();
@@ -42,8 +43,8 @@ public class ChatServiceImpl implements ChatService {
         c.setBookingId(request.getBookingId());
         c = conversationRepository.save(c);
 
-        Long cid = c.getId();
-        for (Long uid : users) {
+        UUID cid = c.getId();
+        for (UUID uid : users) {
             ConversationParticipant p = new ConversationParticipant();
             p.setId(new ConversationParticipantId(cid, uid));
             participantRepository.save(p);
@@ -54,8 +55,8 @@ public class ChatServiceImpl implements ChatService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<ConversationResponse> listMyConversations(Long userId) {
-        List<Long> ids = participantRepository.findConversationIdsByUserId(userId);
+    public List<ConversationResponse> listMyConversations(UUID userId) {
+        List<UUID> ids = participantRepository.findConversationIdsByUserId(userId);
         return conversationRepository.findAllById(ids).stream()
                 .map(this::toConvResponse)
                 .collect(Collectors.toList());
@@ -63,7 +64,7 @@ public class ChatServiceImpl implements ChatService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<ChatMessageResponse> listMessages(Long userId, Long conversationId) {
+    public List<ChatMessageResponse> listMessages(UUID userId, UUID conversationId) {
         assertParticipant(conversationId, userId);
         return messageRepository.findByConversationIdOrderByCreatedAtAsc(conversationId).stream()
                 .map(this::toMessageResponse)
@@ -72,7 +73,7 @@ public class ChatServiceImpl implements ChatService {
 
     @Override
     @Transactional
-    public ChatMessageResponse sendMessage(Long userId, Long conversationId, SendMessageRequest request) {
+    public ChatMessageResponse sendMessage(UUID userId, UUID conversationId, SendMessageRequest request) {
         assertParticipant(conversationId, userId);
         ChatMessage m = new ChatMessage();
         m.setConversationId(conversationId);
@@ -82,7 +83,7 @@ public class ChatServiceImpl implements ChatService {
         m = messageRepository.save(m);
 
         if (request.getAttachmentFileIds() != null) {
-            for (Long fid : request.getAttachmentFileIds()) {
+            for (UUID fid : request.getAttachmentFileIds()) {
                 MessageAttachment a = new MessageAttachment();
                 a.setMessageId(m.getId());
                 a.setFileId(fid);
@@ -92,7 +93,7 @@ public class ChatServiceImpl implements ChatService {
         return toMessageResponse(m);
     }
 
-    private void assertParticipant(Long conversationId, Long userId) {
+    private void assertParticipant(UUID conversationId, UUID userId) {
         conversationRepository.findById(conversationId)
                 .orElseThrow(() -> new AppException(ChatErrorCode.CONVERSATION_NOT_FOUND));
         if (!participantRepository.isParticipant(conversationId, userId)) {
@@ -110,7 +111,7 @@ public class ChatServiceImpl implements ChatService {
     }
 
     private ChatMessageResponse toMessageResponse(ChatMessage m) {
-        List<Long> fileIds = attachmentRepository.findByMessageId(m.getId()).stream()
+        List<UUID> fileIds = attachmentRepository.findByMessageId(m.getId()).stream()
                 .map(MessageAttachment::getFileId)
                 .collect(Collectors.toList());
         return ChatMessageResponse.builder()

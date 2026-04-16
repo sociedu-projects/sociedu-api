@@ -218,7 +218,7 @@ public class AuthServiceImpl implements AuthService {
     // ------------------------------------------------------------------ verifyEmail
     @Override
     @Transactional
-    public void verifyEmail(String token) {
+    public AuthResponse verifyEmail(String token) {
         OtpToken otp = otpTokenRepository
                 .findByCodeAndTypeAndUsedFalse(token, OtpType.EMAIL_VERIFY)
                 .orElseThrow(() -> new AppException(AuthErrorCode.INVALID_OTP, "Liên kết xác minh không hợp lệ hoặc đã được sử dụng"));
@@ -230,10 +230,15 @@ public class AuthServiceImpl implements AuthService {
         User user = userRepository.findById(otp.getUserId())
                 .orElseThrow(() -> new AppException(AuthErrorCode.INVALID_OTP, "Liên kết xác minh không hợp lệ"));
 
+        List<String> roles = user.getUserRoles().stream()
+                .map(ur -> ur.getRole().getName())
+                .toList();
+        UserProfile profile = userProfileRepository.findById(user.getId()).orElse(null);
+
         if (Boolean.TRUE.equals(user.getEmailVerified())) {
             otp.setUsed(true);
             otpTokenRepository.save(otp);
-            return;
+            return buildAuthResponse(user, roles, profile);
         }
 
         otp.setUsed(true);
@@ -243,6 +248,7 @@ public class AuthServiceImpl implements AuthService {
         user.setStatus(UserStatuses.ACTIVE);
         userRepository.save(user);
         log.info("[Auth] Email verified for userId={}", user.getId());
+        return buildAuthResponse(user, roles, profile);
     }
 
     // ------------------------------------------------------------------ forgotPassword

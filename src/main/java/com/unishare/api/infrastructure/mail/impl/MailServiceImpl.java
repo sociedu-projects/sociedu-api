@@ -50,26 +50,26 @@ public class MailServiceImpl implements MailService {
     }
 
     @Override
-    public void sendOrderPaidNotice(String toEmail, long orderId) {
-        String subject = "[" + brandName + "] Thanh toán thành công — đơn #" + orderId;
+    public void sendOrderPaidNotice(String toEmail, java.util.UUID orderId) {
+        String subject = "[" + brandName + "] Thanh toán thành công — đơn " + orderId;
         String html = simpleCard(
                 "Thanh toán thành công",
-                "Đơn hàng <strong>#" + orderId + "</strong> đã được thanh toán. Booking sẽ được tạo tự động — bạn sẽ nhận thêm email khi lịch học được xác nhận.");
+                "Đơn hàng <strong>" + orderId + "</strong> đã được thanh toán. Booking sẽ được tạo tự động — bạn sẽ nhận thêm email khi lịch học được xác nhận.");
         sendHtmlEmail(toEmail, subject, html);
     }
 
     @Override
-    public void sendOrderPaymentFailedNotice(String toEmail, long orderId) {
-        String subject = "[" + brandName + "] Thanh toán không thành công — đơn #" + orderId;
+    public void sendOrderPaymentFailedNotice(String toEmail, java.util.UUID orderId) {
+        String subject = "[" + brandName + "] Thanh toán không thành công — đơn " + orderId;
         String html = simpleCard(
                 "Thanh toán không thành công",
-                "Đơn <strong>#" + orderId + "</strong> chưa thanh toán. Bạn có thể thử lại từ ứng dụng.");
+                "Đơn <strong>" + orderId + "</strong> chưa thanh toán. Bạn có thể thử lại từ ứng dụng.");
         sendHtmlEmail(toEmail, subject, html);
     }
 
     @Override
-    public void sendBookingCreatedNotice(String buyerEmail, String mentorEmail, long bookingId, long orderId) {
-        String base = "Booking <strong>#" + bookingId + "</strong> (đơn #" + orderId + ") đã được tạo.";
+    public void sendBookingCreatedNotice(String buyerEmail, String mentorEmail, java.util.UUID bookingId, java.util.UUID orderId) {
+        String base = "Booking <strong>" + bookingId + "</strong> (đơn " + orderId + ") đã được tạo.";
         if (buyerEmail != null && !buyerEmail.isBlank()) {
             sendHtmlEmail(buyerEmail, "[" + brandName + "] Đã tạo lịch học", simpleCard("Lịch học mới", base + " Mentor sẽ cập nhật buổi học."));
         }

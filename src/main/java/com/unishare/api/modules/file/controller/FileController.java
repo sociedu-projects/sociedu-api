@@ -15,6 +15,8 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.UUID;
+
 @RestController
 @RequestMapping("/api/v1/files")
 @RequiredArgsConstructor
@@ -33,7 +35,7 @@ public class FileController {
             @RequestParam(required = false) String folder,
             @RequestParam(required = false, defaultValue = "private") String visibility,
             @RequestParam(required = false) String entityType,
-            @RequestParam(required = false) Long entityId) {
+            @RequestParam(required = false) UUID entityId) {
         FileUploadResponse data = fileService.upload(
                 principal.getUserId(), file, folder, visibility, entityType, entityId);
         return ResponseEntity.ok(ApiResponse.<FileUploadResponse>build()
@@ -46,7 +48,7 @@ public class FileController {
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<FileUploadResponse>> get(
             @AuthenticationPrincipal CustomUserPrincipal principal,
-            @PathVariable Long id) {
+            @PathVariable UUID id) {
         return ResponseEntity.ok(ApiResponse.<FileUploadResponse>build()
                 .withData(fileService.getFile(id, principal.getUserId())));
     }
@@ -56,7 +58,7 @@ public class FileController {
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Void>> delete(
             @AuthenticationPrincipal CustomUserPrincipal principal,
-            @PathVariable Long id) {
+            @PathVariable UUID id) {
         fileService.softDelete(id, principal.getUserId());
         return ResponseEntity.ok(ApiResponse.<Void>build().withMessage("Đã xóa file"));
     }

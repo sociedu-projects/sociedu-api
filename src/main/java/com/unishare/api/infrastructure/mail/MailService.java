@@ -11,11 +11,11 @@ public interface MailService {
     void sendPasswordReset(String to, String resetLink);
 
     /** Trigger: {@link com.unishare.api.common.event.OrderPaidNotificationMailEvent}. */
-    void sendOrderPaidNotice(String toEmail, long orderId);
+    void sendOrderPaidNotice(String toEmail, java.util.UUID orderId);
 
     /** Trigger: {@link com.unishare.api.common.event.OrderPaymentFailedNotificationMailEvent}. */
-    void sendOrderPaymentFailedNotice(String toEmail, long orderId);
+    void sendOrderPaymentFailedNotice(String toEmail, java.util.UUID orderId);
 
     /** Trigger: {@link com.unishare.api.common.event.BookingCreatedNotificationMailEvent}. */
-    void sendBookingCreatedNotice(String buyerEmail, String mentorEmail, long bookingId, long orderId);
+    void sendBookingCreatedNotice(String buyerEmail, String mentorEmail, java.util.UUID bookingId, java.util.UUID orderId);
 }

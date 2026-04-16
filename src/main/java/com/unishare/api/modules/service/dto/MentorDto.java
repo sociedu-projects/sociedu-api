@@ -4,6 +4,7 @@ import lombok.Builder;
 import lombok.Data;
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.UUID;
 
 public class MentorDto {
 
@@ -17,7 +18,7 @@ public class MentorDto {
     @Data
     @Builder
     public static class MentorProfileResponse {
-        private Long userId;
+        private UUID userId;
         private String headline;
         private String expertise;
         private BigDecimal basePrice;
@@ -39,7 +40,7 @@ public class MentorDto {
     @Data
     @Builder
     public static class ServicePackageVersionResponse {
-        private Long id;
+        private UUID id;
         private BigDecimal price;
         private Integer duration;
         private String deliveryType;
@@ -49,8 +50,8 @@ public class MentorDto {
     @Data
     @Builder
     public static class ServicePackageResponse {
-        private Long id;
-        private Long mentorId;
+        private UUID id;
+        private UUID mentorId;
         private String name;
         private String description;
         private Boolean isActive;
@@ -68,8 +69,8 @@ public class MentorDto {
     @Data
     @Builder
     public static class CurriculumItemResponse {
-        private Long id;
-        private Long packageVersionId;
+        private UUID id;
+        private UUID packageVersionId;
         private String title;
         private String description;
         private Integer orderIndex;

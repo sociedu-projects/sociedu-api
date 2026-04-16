@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -26,7 +27,7 @@ public class ProgressReportServiceImpl implements ProgressReportService {
 
     @Override
     @Transactional
-    public ProgressReportResponse createReport(Long menteeId, CreateReportRequest request) {
+    public ProgressReportResponse createReport(UUID menteeId, CreateReportRequest request) {
         ProgressReport report = new ProgressReport();
         report.setMenteeId(menteeId);
         report.setMentorId(request.getMentorId());
@@ -40,7 +41,7 @@ public class ProgressReportServiceImpl implements ProgressReportService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<ProgressReportResponse> getMenteeReports(Long menteeId) {
+    public List<ProgressReportResponse> getMenteeReports(UUID menteeId) {
         return progressReportRepository.findByMenteeIdOrderByCreatedAtDesc(menteeId)
                 .stream()
                 .map(this::mapToResponse)
@@ -49,7 +50,7 @@ public class ProgressReportServiceImpl implements ProgressReportService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<ProgressReportResponse> getMentorReports(Long mentorId) {
+    public List<ProgressReportResponse> getMentorReports(UUID mentorId) {
         return progressReportRepository.findByMentorIdOrderByCreatedAtDesc(mentorId)
                 .stream()
                 .map(this::mapToResponse)
@@ -58,7 +59,7 @@ public class ProgressReportServiceImpl implements ProgressReportService {
 
     @Override
     @Transactional
-    public ProgressReportResponse reviewReport(Long mentorId, Long reportId, ReviewReportRequest request) {
+    public ProgressReportResponse reviewReport(UUID mentorId, UUID reportId, ReviewReportRequest request) {
         ProgressReport report = progressReportRepository.findById(reportId)
                 .orElseThrow(() -> new AppException(ProgressReportErrorCode.PROGRESS_REPORT_NOT_FOUND,
                         "Không tìm thấy báo cáo này"));

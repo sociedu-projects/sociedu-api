@@ -17,6 +17,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/mentors/me/reports")
@@ -43,7 +44,7 @@ public class MentorReportController {
     @PutMapping("/{id}/feedback")
     public ResponseEntity<ApiResponse<ProgressReportResponse>> reviewReport(
             @AuthenticationPrincipal CustomUserPrincipal principal,
-            @PathVariable Long id,
+            @PathVariable UUID id,
             @Valid @RequestBody ReviewReportRequest request) {
             
         ProgressReportResponse response = reportService.reviewReport(principal.getUserId(), id, request);

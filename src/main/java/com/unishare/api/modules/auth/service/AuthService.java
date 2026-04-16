@@ -15,7 +15,7 @@ public interface AuthService {
 
     void sendVerificationEmail(String email);
 
-    void verifyEmail(String token);
+    AuthResponse verifyEmail(String token);
 
     void forgotPassword(ForgotPasswordRequest request);
 

@@ -5,13 +5,14 @@ import com.unishare.api.modules.service.dto.request.ReviewReportRequest;
 import com.unishare.api.modules.service.dto.response.ProgressReportResponse;
 
 import java.util.List;
+import java.util.UUID;
 
 public interface ProgressReportService {
     // For Mentees
-    ProgressReportResponse createReport(Long menteeId, CreateReportRequest request);
-    List<ProgressReportResponse> getMenteeReports(Long menteeId);
+    ProgressReportResponse createReport(UUID menteeId, CreateReportRequest request);
+    List<ProgressReportResponse> getMenteeReports(UUID menteeId);
 
     // For Mentors
-    List<ProgressReportResponse> getMentorReports(Long mentorId);
-    ProgressReportResponse reviewReport(Long mentorId, Long reportId, ReviewReportRequest request);
+    List<ProgressReportResponse> getMentorReports(UUID mentorId);
+    ProgressReportResponse reviewReport(UUID mentorId, UUID reportId, ReviewReportRequest request);
 }
