@@ -18,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -31,7 +32,7 @@ public class MentorServiceImpl implements MentorService {
 
     @Override
     @Transactional(readOnly = true)
-    public MentorProfileResponse getMentorProfile(Long mentorId) {
+    public MentorProfileResponse getMentorProfile(UUID mentorId) {
         MentorProfile profile = mentorProfileRepository.findById(mentorId)
                 .orElseThrow(() -> new AppException(ServiceErrorCode.MENTOR_NOT_FOUND, "Mentor not found"));
 
@@ -51,7 +52,7 @@ public class MentorServiceImpl implements MentorService {
 
     @Override
     @Transactional
-    public MentorProfileResponse createOrUpdateProfile(Long userId, MentorProfileRequest request) {
+    public MentorProfileResponse createOrUpdateProfile(UUID userId, MentorProfileRequest request) {
         MentorProfile profile = mentorProfileRepository.findById(userId)
                 .orElse(new MentorProfile());
 
@@ -78,7 +79,7 @@ public class MentorServiceImpl implements MentorService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<ServicePackageResponse> getMentorPackages(Long mentorId) {
+    public List<ServicePackageResponse> getMentorPackages(UUID mentorId) {
         return servicePackageRepository.findByMentorId(mentorId).stream()
                 .map(this::mapToPackageResponse)
                 .collect(Collectors.toList());
@@ -86,7 +87,7 @@ public class MentorServiceImpl implements MentorService {
 
     @Override
     @Transactional
-    public ServicePackageResponse createPackage(Long mentorId, ServicePackageRequest request) {
+    public ServicePackageResponse createPackage(UUID mentorId, ServicePackageRequest request) {
         ServicePackage pkg = new ServicePackage();
         pkg.setMentorId(mentorId);
         pkg.setName(request.getName());
@@ -107,7 +108,7 @@ public class MentorServiceImpl implements MentorService {
 
     @Override
     @Transactional
-    public void deletePackage(Long mentorId, Long packageId) {
+    public void deletePackage(UUID mentorId, UUID packageId) {
         ServicePackage pkg = servicePackageRepository.findById(packageId)
                 .filter(p -> p.getMentorId().equals(mentorId))
                 .orElseThrow(() -> new AppException(ServiceErrorCode.PACKAGE_NOT_FOUND, "Package not found"));
@@ -143,7 +144,7 @@ public class MentorServiceImpl implements MentorService {
 
     @Override
     @Transactional
-    public CurriculumItemResponse addCurriculumItem(Long mentorId, Long packageId, Long versionId, CurriculumItemRequest request) {
+    public CurriculumItemResponse addCurriculumItem(UUID mentorId, UUID packageId, UUID versionId, CurriculumItemRequest request) {
         ServicePackage pkg = servicePackageRepository.findById(packageId)
                 .filter(p -> p.getMentorId().equals(mentorId))
                 .orElseThrow(() -> new AppException(ServiceErrorCode.PACKAGE_NOT_FOUND, "Package not found"));
@@ -162,7 +163,7 @@ public class MentorServiceImpl implements MentorService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<CurriculumItemResponse> listCurriculum(Long mentorId, Long packageId, Long versionId) {
+    public List<CurriculumItemResponse> listCurriculum(UUID mentorId, UUID packageId, UUID versionId) {
         assertPackageOwner(mentorId, packageId);
         ServicePackageVersion ver = servicePackageVersionRepository.findById(versionId)
                 .filter(v -> v.getPackageId().equals(packageId))
@@ -174,7 +175,7 @@ public class MentorServiceImpl implements MentorService {
 
     @Override
     @Transactional
-    public void deleteCurriculumItem(Long mentorId, Long curriculumId) {
+    public void deleteCurriculumItem(UUID mentorId, UUID curriculumId) {
         PackageCurriculum c = packageCurriculumRepository.findById(curriculumId)
                 .orElseThrow(() -> new AppException(ServiceErrorCode.CURRICULUM_NOT_FOUND, "Curriculum not found"));
         ServicePackageVersion ver = servicePackageVersionRepository.findById(c.getPackageVersionId())
@@ -183,7 +184,7 @@ public class MentorServiceImpl implements MentorService {
         packageCurriculumRepository.delete(c);
     }
 
-    private void assertPackageOwner(Long mentorId, Long packageId) {
+    private void assertPackageOwner(UUID mentorId, UUID packageId) {
         servicePackageRepository.findById(packageId)
                 .filter(p -> p.getMentorId().equals(mentorId))
                 .orElseThrow(() -> new AppException(ServiceErrorCode.PACKAGE_NOT_FOUND, "Package not found"));

@@ -18,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -30,7 +31,7 @@ public class TrustServiceImpl implements TrustService {
 
     @Override
     @Transactional
-    public ModerationReportResponse createReport(Long reporterId, CreateModerationReportRequest request) {
+    public ModerationReportResponse createReport(UUID reporterId, CreateModerationReportRequest request) {
         ModerationReport r = new ModerationReport();
         r.setReporterId(reporterId);
         r.setReportedUserId(request.getReportedUserId());
@@ -45,7 +46,7 @@ public class TrustServiceImpl implements TrustService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<ModerationReportResponse> myReports(Long reporterId) {
+    public List<ModerationReportResponse> myReports(UUID reporterId) {
         return reportRepository.findByReporterIdOrderByCreatedAtDesc(reporterId).stream()
                 .map(this::toReportResponse)
                 .collect(Collectors.toList());
@@ -53,7 +54,7 @@ public class TrustServiceImpl implements TrustService {
 
     @Override
     @Transactional
-    public ModerationReportResponse addEvidence(Long reporterId, Long reportId, AddReportEvidenceRequest request) {
+    public ModerationReportResponse addEvidence(UUID reporterId, UUID reportId, AddReportEvidenceRequest request) {
         ModerationReport r = reportRepository.findById(reportId)
                 .orElseThrow(() -> new AppException(TrustErrorCode.REPORT_NOT_FOUND));
         if (!r.getReporterId().equals(reporterId)) {
@@ -70,7 +71,7 @@ public class TrustServiceImpl implements TrustService {
 
     @Override
     @Transactional
-    public ModerationReportResponse resolveReport(Long moderatorUserId, Long reportId, ResolveReportRequest request) {
+    public ModerationReportResponse resolveReport(UUID moderatorUserId, UUID reportId, ResolveReportRequest request) {
         ModerationReport r = reportRepository.findById(reportId)
                 .orElseThrow(() -> new AppException(TrustErrorCode.REPORT_NOT_FOUND));
         r.setStatus(request.getStatus());
@@ -83,7 +84,7 @@ public class TrustServiceImpl implements TrustService {
 
     @Override
     @Transactional
-    public DisputeResponse createDispute(Long userId, CreateDisputeRequest request) {
+    public DisputeResponse createDispute(UUID userId, CreateDisputeRequest request) {
         Dispute d = new Dispute();
         d.setReportId(request.getReportId());
         d.setBookingId(request.getBookingId());
@@ -98,7 +99,7 @@ public class TrustServiceImpl implements TrustService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<DisputeResponse> myDisputes(Long userId) {
+    public List<DisputeResponse> myDisputes(UUID userId) {
         return disputeRepository.findByRaisedByOrderByCreatedAtDesc(userId).stream()
                 .map(this::toDisputeResponse)
                 .collect(Collectors.toList());
@@ -106,7 +107,7 @@ public class TrustServiceImpl implements TrustService {
 
     @Override
     @Transactional
-    public DisputeResponse resolveDispute(Long moderatorUserId, Long disputeId, ResolveDisputeRequest request) {
+    public DisputeResponse resolveDispute(UUID moderatorUserId, UUID disputeId, ResolveDisputeRequest request) {
         Dispute d = disputeRepository.findById(disputeId)
                 .orElseThrow(() -> new AppException(TrustErrorCode.DISPUTE_NOT_FOUND));
         d.setStatus(request.getStatus());

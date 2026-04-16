@@ -3,7 +3,7 @@ package com.unishare.api.modules.trust.dto;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
-
+import java.util.UUID;
 @Data
 public class CreateModerationReportRequest {
 
@@ -11,9 +11,9 @@ public class CreateModerationReportRequest {
     private String type;
 
     @NotNull
-    private Long entityId;
+    private UUID entityId;
 
-    private Long reportedUserId;
+    private UUID reportedUserId;
 
     @NotBlank
     private String reason;

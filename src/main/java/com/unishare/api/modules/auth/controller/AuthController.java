@@ -70,9 +70,11 @@ public class AuthController {
     /** POST /api/v1/auth/verify-email — Xác minh email bằng token từ liên kết trong mail (không cần đăng nhập). */
     @Operation(summary = "Xác minh email")
     @PostMapping("/verify-email")
-    public ResponseEntity<ApiResponse<Void>> verifyEmail(@Valid @RequestBody VerifyEmailRequest request) {
-        authService.verifyEmail(request.getToken());
-        return ResponseEntity.ok(ApiResponse.<Void>build().withMessage("Xác minh email thành công."));
+    public ResponseEntity<ApiResponse<AuthResponse>> verifyEmail(@Valid @RequestBody VerifyEmailRequest request) {
+        AuthResponse data = authService.verifyEmail(request.getToken());
+        return ResponseEntity.ok(ApiResponse.<AuthResponse>build()
+                .withData(data)
+                .withMessage("Xác minh email thành công."));
     }
 
     /** POST /api/v1/auth/resend-verification — Gửi lại email chứa liên kết xác minh (không cần đăng nhập). */

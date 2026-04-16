@@ -2,15 +2,16 @@ package com.unishare.api.modules.trust.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
+import java.util.UUID;
 
 @Data
 public class CreateDisputeRequest {
 
-    private Long reportId;
+    private UUID reportId;
 
-    private Long bookingId;
+    private UUID bookingId;
 
-    private Long sessionId;
+    private UUID sessionId;
 
     @NotBlank
     private String reason;

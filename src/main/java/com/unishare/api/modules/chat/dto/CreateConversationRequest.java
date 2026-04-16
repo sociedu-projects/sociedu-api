@@ -5,6 +5,7 @@ import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
 import java.util.List;
+import java.util.UUID;
 
 @Data
 public class CreateConversationRequest {
@@ -12,8 +13,9 @@ public class CreateConversationRequest {
     @NotNull
     private String type;
 
-    private Long bookingId;
+    @NotNull
+    private UUID bookingId;
 
     @NotEmpty
-    private List<Long> participantUserIds;
+    private List<UUID> participantUserIds;
 }

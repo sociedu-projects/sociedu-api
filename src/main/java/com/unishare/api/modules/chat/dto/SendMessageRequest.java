@@ -4,10 +4,11 @@ import com.unishare.api.common.constants.MessageTypes;
 import lombok.Data;
 
 import java.util.List;
+import java.util.UUID;
 
 @Data
 public class SendMessageRequest {
     private String content;
     private String type = MessageTypes.TEXT;
-    private List<Long> attachmentFileIds;
+    private List<UUID> attachmentFileIds;
 }

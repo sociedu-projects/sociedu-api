@@ -3,20 +3,21 @@ package com.unishare.api.modules.trust.service;
 import com.unishare.api.modules.trust.dto.*;
 
 import java.util.List;
+import java.util.UUID;
 
 public interface TrustService {
 
-    ModerationReportResponse createReport(Long reporterId, CreateModerationReportRequest request);
+    ModerationReportResponse createReport(UUID reporterId, CreateModerationReportRequest request);
 
-    List<ModerationReportResponse> myReports(Long reporterId);
+    List<ModerationReportResponse> myReports(UUID reporterId);
 
-    ModerationReportResponse addEvidence(Long reporterId, Long reportId, AddReportEvidenceRequest request);
+    ModerationReportResponse addEvidence(UUID reporterId, UUID reportId, AddReportEvidenceRequest request);
 
-    ModerationReportResponse resolveReport(Long moderatorUserId, Long reportId, ResolveReportRequest request);
+    ModerationReportResponse resolveReport(UUID moderatorUserId, UUID reportId, ResolveReportRequest request);
 
-    DisputeResponse createDispute(Long userId, CreateDisputeRequest request);
+    DisputeResponse createDispute(UUID userId, CreateDisputeRequest request);
 
-    List<DisputeResponse> myDisputes(Long userId);
+    List<DisputeResponse> myDisputes(UUID userId);
 
-    DisputeResponse resolveDispute(Long moderatorUserId, Long disputeId, ResolveDisputeRequest request);
+    DisputeResponse resolveDispute(UUID moderatorUserId, UUID disputeId, ResolveDisputeRequest request);
 }

@@ -3,14 +3,15 @@ package com.unishare.api.modules.chat.service;
 import com.unishare.api.modules.chat.dto.*;
 
 import java.util.List;
+import java.util.UUID;
 
 public interface ChatService {
 
-    ConversationResponse createConversation(Long creatorUserId, CreateConversationRequest request);
+    ConversationResponse createConversation(UUID creatorUserId, CreateConversationRequest request);
 
-    List<ConversationResponse> listMyConversations(Long userId);
+    List<ConversationResponse> listMyConversations(UUID userId);
 
-    List<ChatMessageResponse> listMessages(Long userId, Long conversationId);
+    List<ChatMessageResponse> listMessages(UUID userId, UUID conversationId);
 
-    ChatMessageResponse sendMessage(Long userId, Long conversationId, SendMessageRequest request);
+    ChatMessageResponse sendMessage(UUID userId, UUID conversationId, SendMessageRequest request);
 }

@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/orders")
@@ -67,7 +68,7 @@ public class OrderController {
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<OrderResponse>> getOrderById(
             @AuthenticationPrincipal CustomUserPrincipal principal,
-            @PathVariable Long id) {
+            @PathVariable UUID id) {
         return ResponseEntity.ok(ApiResponse.<OrderResponse>build()
                 .withData(orderService.getOrderById(id, principal.getUserId())));
     }
