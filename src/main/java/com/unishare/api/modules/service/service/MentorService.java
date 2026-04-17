@@ -1,6 +1,7 @@
 package com.unishare.api.modules.service.service;
 
 import com.unishare.api.modules.service.dto.MentorDto.*;
+import com.unishare.api.modules.service.dto.request.CreateServicePackageRequest;
 
 import java.util.List;
 import java.util.UUID;
@@ -13,7 +14,7 @@ public interface MentorService {
 
     // Packages
     List<ServicePackageResponse> getMentorPackages(UUID mentorId);
-    ServicePackageResponse createPackage(UUID mentorId, ServicePackageRequest request);
+    ServicePackageResponse createPackage(UUID mentorId, CreateServicePackageRequest request);
     void deletePackage(UUID mentorId, UUID packageId);
 
     CurriculumItemResponse addCurriculumItem(UUID mentorId, UUID packageId, UUID versionId, CurriculumItemRequest request);

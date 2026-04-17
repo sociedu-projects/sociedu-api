@@ -5,29 +5,40 @@ import com.unishare.api.modules.service.dto.request.CreateReportRequest;
 import com.unishare.api.modules.service.dto.request.ReviewReportRequest;
 import com.unishare.api.modules.service.dto.response.ProgressReportResponse;
 import com.unishare.api.modules.service.entity.ProgressReport;
+import com.unishare.api.modules.service.entity.ReportStatus;
 import com.unishare.api.modules.service.exception.ProgressReportErrorCode;
+import com.unishare.api.modules.service.repository.MentorProfileRepository;
 import com.unishare.api.modules.service.repository.ProgressReportRepository;
 import com.unishare.api.modules.service.service.ProgressReportService;
-import com.unishare.api.modules.user.entity.UserProfile;
-import com.unishare.api.modules.user.repository.UserProfileRepository;
+import com.unishare.api.modules.user.dto.UserProfileResponse;
+import com.unishare.api.modules.user.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class ProgressReportServiceImpl implements ProgressReportService {
 
     private final ProgressReportRepository progressReportRepository;
-    private final UserProfileRepository userProfileRepository;
+    private final MentorProfileRepository mentorProfileRepository;
+    private final UserService userService;
 
     @Override
     @Transactional
     public ProgressReportResponse createReport(UUID menteeId, CreateReportRequest request) {
+        if (menteeId.equals(request.getMentorId())) {
+            throw new AppException(ProgressReportErrorCode.PROGRESS_REPORT_SELF_TARGET_NOT_ALLOWED,
+                    "Mentee không thể tạo báo cáo cho chính mình");
+        }
+        if (!mentorProfileRepository.existsById(request.getMentorId())) {
+            throw new AppException(ProgressReportErrorCode.PROGRESS_REPORT_MENTOR_NOT_FOUND,
+                    "Không tìm thấy mentor nhận báo cáo");
+        }
+
         ProgressReport report = new ProgressReport();
         report.setMenteeId(menteeId);
         report.setMentorId(request.getMentorId());
@@ -45,7 +56,7 @@ public class ProgressReportServiceImpl implements ProgressReportService {
         return progressReportRepository.findByMenteeIdOrderByCreatedAtDesc(menteeId)
                 .stream()
                 .map(this::mapToResponse)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Override
@@ -54,7 +65,7 @@ public class ProgressReportServiceImpl implements ProgressReportService {
         return progressReportRepository.findByMentorIdOrderByCreatedAtDesc(mentorId)
                 .stream()
                 .map(this::mapToResponse)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Override
@@ -69,28 +80,25 @@ public class ProgressReportServiceImpl implements ProgressReportService {
                     "Bạn không có quyền chấm báo cáo này");
         }
 
+        if (request.getStatus() == ReportStatus.PENDING) {
+            throw new AppException(ProgressReportErrorCode.PROGRESS_REPORT_INVALID_REVIEW_STATUS,
+                    "Mentor không thể phản hồi với trạng thái PENDING");
+        }
+
         report.setStatus(request.getStatus());
         report.setMentorFeedback(request.getMentorFeedback());
         ProgressReport saved = progressReportRepository.save(report);
-        
+
         return mapToResponse(saved);
     }
 
     private ProgressReportResponse mapToResponse(ProgressReport report) {
-        String menteeName = userProfileRepository.findById(report.getMenteeId())
-                .map(UserProfile::getDisplayName)
-                .orElse("Mentee");
-
-        String mentorName = userProfileRepository.findById(report.getMentorId())
-                .map(UserProfile::getDisplayName)
-                .orElse("Mentor");
-
         return ProgressReportResponse.builder()
                 .id(report.getId())
                 .menteeId(report.getMenteeId())
                 .mentorId(report.getMentorId())
-                .menteeName(menteeName)
-                .mentorName(mentorName)
+                .menteeName(resolveDisplayName(report.getMenteeId(), "Mentee"))
+                .mentorName(resolveDisplayName(report.getMentorId(), "Mentor"))
                 .title(report.getTitle())
                 .content(report.getContent())
                 .attachmentUrl(report.getAttachmentUrl())
@@ -99,5 +107,19 @@ public class ProgressReportServiceImpl implements ProgressReportService {
                 .createdAt(report.getCreatedAt())
                 .updatedAt(report.getUpdatedAt())
                 .build();
+    }
+
+    private String resolveDisplayName(UUID userId, String fallback) {
+        UserProfileResponse profile = userService.getProfile(userId);
+        if (profile == null) {
+            return fallback;
+        }
+
+        String fullName = String.join(" ",
+                        profile.getFirstName() == null ? "" : profile.getFirstName().trim(),
+                        profile.getLastName() == null ? "" : profile.getLastName().trim())
+                .trim();
+
+        return fullName.isBlank() ? fallback : fullName;
     }
 }

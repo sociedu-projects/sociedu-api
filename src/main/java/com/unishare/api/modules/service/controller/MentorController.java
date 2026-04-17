@@ -4,12 +4,14 @@ import com.unishare.api.common.dto.ApiResponse;
 import com.unishare.api.config.OpenApiConfig;
 import com.unishare.api.infrastructure.security.CustomUserPrincipal;
 import com.unishare.api.modules.service.dto.MentorDto.*;
+import com.unishare.api.modules.service.dto.request.CreateServicePackageRequest;
 import com.unishare.api.modules.service.service.MentorService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.security.PermitAll;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -73,7 +75,7 @@ public class MentorController {
     @PostMapping("/me/packages")
     public ResponseEntity<ApiResponse<ServicePackageResponse>> addPackage(
             @AuthenticationPrincipal CustomUserPrincipal principal,
-            @RequestBody ServicePackageRequest request) {
+            @Valid @RequestBody CreateServicePackageRequest request) {
         return ResponseEntity.ok(ApiResponse.<ServicePackageResponse>build()
                 .withData(mentorService.createPackage(principal.getUserId(), request)));
     }
@@ -97,7 +99,7 @@ public class MentorController {
             @AuthenticationPrincipal CustomUserPrincipal principal,
             @PathVariable java.util.UUID pkgId,
             @PathVariable java.util.UUID verId,
-            @RequestBody CurriculumItemRequest request) {
+            @Valid @RequestBody CurriculumItemRequest request) {
         return ResponseEntity.ok(ApiResponse.<CurriculumItemResponse>build()
                 .withData(mentorService.addCurriculumItem(principal.getUserId(), pkgId, verId, request)));
     }

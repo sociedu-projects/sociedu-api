@@ -4,6 +4,7 @@ import com.unishare.api.common.dto.AppException;
 import com.unishare.api.common.constants.MentorVerificationStatuses;
 import com.unishare.api.modules.service.exception.ServiceErrorCode;
 import com.unishare.api.modules.service.dto.MentorDto.*;
+import com.unishare.api.modules.service.dto.request.CreateServicePackageRequest;
 import com.unishare.api.modules.service.entity.MentorProfile;
 import com.unishare.api.modules.service.entity.PackageCurriculum;
 import com.unishare.api.modules.service.entity.ServicePackage;
@@ -18,6 +19,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -87,7 +90,9 @@ public class MentorServiceImpl implements MentorService {
 
     @Override
     @Transactional
-    public ServicePackageResponse createPackage(UUID mentorId, ServicePackageRequest request) {
+    public ServicePackageResponse createPackage(UUID mentorId, CreateServicePackageRequest request) {
+        validateCreatePackageRequest(request);
+
         ServicePackage pkg = new ServicePackage();
         pkg.setMentorId(mentorId);
         pkg.setName(request.getName());
@@ -98,12 +103,17 @@ public class MentorServiceImpl implements MentorService {
         ServicePackageVersion ver = new ServicePackageVersion();
         ver.setPackageId(saved.getId());
         ver.setPrice(request.getPrice());
-        ver.setDuration(request.getDuration() != null ? request.getDuration() : 60);
+        ver.setDuration(request.getDuration());
         ver.setDeliveryType(request.getDeliveryType());
         ver.setIsDefault(true);
-        servicePackageVersionRepository.save(ver);
+        ServicePackageVersion savedVersion = servicePackageVersionRepository.save(ver);
 
-        return mapToPackageResponse(servicePackageRepository.findById(saved.getId()).orElseThrow());
+        List<PackageCurriculum> curriculums = request.getCurriculums().stream()
+                .map(item -> mapCurriculumRequest(savedVersion.getId(), item))
+                .toList();
+        packageCurriculumRepository.saveAll(curriculums);
+
+        return mapToPackageResponse(saved);
     }
 
     @Override
@@ -122,23 +132,33 @@ public class MentorServiceImpl implements MentorService {
 
     private ServicePackageResponse mapToPackageResponse(ServicePackage pkg) {
         List<ServicePackageVersion> versions = servicePackageVersionRepository.findByPackageId(pkg.getId());
+        Map<UUID, List<CurriculumItemResponse>> curriculumsByVersionId = versions.stream()
+                .collect(Collectors.toMap(
+                        ServicePackageVersion::getId,
+                        version -> packageCurriculumRepository.findByPackageVersionIdOrderByOrderIndexAsc(version.getId()).stream()
+                                .map(this::mapCurriculum)
+                                .toList()
+                ));
         return ServicePackageResponse.builder()
                 .id(pkg.getId())
                 .mentorId(pkg.getMentorId())
                 .name(pkg.getName())
                 .description(pkg.getDescription())
                 .isActive(pkg.getIsActive())
-                .versions(versions.stream().map(this::mapVersion).collect(Collectors.toList()))
+                .versions(versions.stream()
+                        .map(version -> mapVersion(version, curriculumsByVersionId.getOrDefault(version.getId(), List.of())))
+                        .collect(Collectors.toList()))
                 .build();
     }
 
-    private ServicePackageVersionResponse mapVersion(ServicePackageVersion v) {
+    private ServicePackageVersionResponse mapVersion(ServicePackageVersion v, List<CurriculumItemResponse> curriculums) {
         return ServicePackageVersionResponse.builder()
                 .id(v.getId())
                 .price(v.getPrice())
                 .duration(v.getDuration())
                 .deliveryType(v.getDeliveryType())
                 .isDefault(v.getIsDefault())
+                .curriculums(curriculums)
                 .build();
     }
 
@@ -199,5 +219,30 @@ public class MentorServiceImpl implements MentorService {
                 .orderIndex(c.getOrderIndex())
                 .duration(c.getDuration())
                 .build();
+    }
+
+    private PackageCurriculum mapCurriculumRequest(UUID versionId, CreateServicePackageRequest.CurriculumRequest request) {
+        PackageCurriculum curriculum = new PackageCurriculum();
+        curriculum.setPackageVersionId(versionId);
+        curriculum.setTitle(request.getTitle());
+        curriculum.setDescription(request.getDescription());
+        curriculum.setOrderIndex(request.getOrderIndex());
+        curriculum.setDuration(request.getDuration());
+        return curriculum;
+    }
+
+    private void validateCreatePackageRequest(CreateServicePackageRequest request) {
+        if (request.getCurriculums() == null || request.getCurriculums().isEmpty()) {
+            throw new AppException(ServiceErrorCode.PACKAGE_CURRICULUM_REQUIRED,
+                    "Gói dịch vụ phải có ít nhất một curriculum");
+        }
+
+        Set<Integer> orderIndexes = request.getCurriculums().stream()
+                .map(CreateServicePackageRequest.CurriculumRequest::getOrderIndex)
+                .collect(Collectors.toSet());
+        if (orderIndexes.size() != request.getCurriculums().size()) {
+            throw new AppException(ServiceErrorCode.DUPLICATE_CURRICULUM_ORDER_INDEX,
+                    "Thứ tự curriculum không được trùng nhau trong cùng một gói");
+        }
     }
 }

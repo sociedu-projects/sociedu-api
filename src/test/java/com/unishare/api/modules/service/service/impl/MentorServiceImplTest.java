@@ -1,0 +1,190 @@
+package com.unishare.api.modules.service.service.impl;
+
+import com.unishare.api.common.dto.AppException;
+import com.unishare.api.modules.service.dto.MentorDto;
+import com.unishare.api.modules.service.dto.request.CreateServicePackageRequest;
+import com.unishare.api.modules.service.entity.PackageCurriculum;
+import com.unishare.api.modules.service.entity.ServicePackage;
+import com.unishare.api.modules.service.entity.ServicePackageVersion;
+import com.unishare.api.modules.service.exception.ServiceErrorCode;
+import com.unishare.api.modules.service.repository.MentorProfileRepository;
+import com.unishare.api.modules.service.repository.PackageCurriculumRepository;
+import com.unishare.api.modules.service.repository.ServicePackageRepository;
+import com.unishare.api.modules.service.repository.ServicePackageVersionRepository;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+import java.math.BigDecimal;
+import java.util.List;
+import java.util.UUID;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+@ExtendWith(MockitoExtension.class)
+class MentorServiceImplTest {
+
+    @Mock
+    private MentorProfileRepository mentorProfileRepository;
+    @Mock
+    private ServicePackageRepository servicePackageRepository;
+    @Mock
+    private ServicePackageVersionRepository servicePackageVersionRepository;
+    @Mock
+    private PackageCurriculumRepository packageCurriculumRepository;
+
+    @InjectMocks
+    private MentorServiceImpl mentorService;
+
+    private UUID mentorId;
+    private UUID packageId;
+    private UUID versionId;
+
+    @BeforeEach
+    void setUp() {
+        mentorId = UUID.randomUUID();
+        packageId = UUID.randomUUID();
+        versionId = UUID.randomUUID();
+    }
+
+    @Test
+    void createPackage_whenValidRequest_shouldCreatePackageDefaultVersionAndCurriculums() {
+        CreateServicePackageRequest request = validRequest();
+
+        when(servicePackageRepository.save(any(ServicePackage.class))).thenAnswer(invocation -> {
+            ServicePackage servicePackage = invocation.getArgument(0);
+            servicePackage.setId(packageId);
+            return servicePackage;
+        });
+        when(servicePackageVersionRepository.save(any(ServicePackageVersion.class))).thenAnswer(invocation -> {
+            ServicePackageVersion version = invocation.getArgument(0);
+            version.setId(versionId);
+            return version;
+        });
+        when(servicePackageVersionRepository.findByPackageId(packageId)).thenReturn(List.of(savedVersion()));
+        when(packageCurriculumRepository.findByPackageVersionIdOrderByOrderIndexAsc(versionId))
+                .thenReturn(savedCurriculums());
+
+        MentorDto.ServicePackageResponse response = mentorService.createPackage(mentorId, request);
+
+        ArgumentCaptor<ServicePackageVersion> versionCaptor = ArgumentCaptor.forClass(ServicePackageVersion.class);
+        verify(servicePackageVersionRepository).save(versionCaptor.capture());
+        assertTrue(versionCaptor.getValue().getIsDefault());
+        assertEquals(packageId, versionCaptor.getValue().getPackageId());
+
+        ArgumentCaptor<List<PackageCurriculum>> curriculumCaptor = ArgumentCaptor.forClass(List.class);
+        verify(packageCurriculumRepository).saveAll(curriculumCaptor.capture());
+        assertEquals(2, curriculumCaptor.getValue().size());
+        assertTrue(curriculumCaptor.getValue().stream().allMatch(item -> versionId.equals(item.getPackageVersionId())));
+
+        assertEquals(packageId, response.getId());
+        assertEquals(1, response.getVersions().size());
+        assertTrue(response.getVersions().get(0).getIsDefault());
+        assertEquals(2, response.getVersions().get(0).getCurriculums().size());
+        assertEquals(List.of(1, 2), response.getVersions().get(0).getCurriculums().stream()
+                .map(MentorDto.CurriculumItemResponse::getOrderIndex)
+                .toList());
+    }
+
+    @Test
+    void createPackage_whenCurriculumOrderIndexDuplicated_shouldThrowBusinessException() {
+        CreateServicePackageRequest request = validRequest();
+        request.getCurriculums().get(1).setOrderIndex(1);
+
+        AppException exception = assertThrows(AppException.class, () -> mentorService.createPackage(mentorId, request));
+
+        assertSame(ServiceErrorCode.DUPLICATE_CURRICULUM_ORDER_INDEX, exception.getExceptionCode());
+    }
+
+    @Test
+    void createPackage_shouldPersistExactlyOneDefaultVersion() {
+        when(servicePackageRepository.save(any(ServicePackage.class))).thenAnswer(invocation -> {
+            ServicePackage servicePackage = invocation.getArgument(0);
+            servicePackage.setId(packageId);
+            return servicePackage;
+        });
+        when(servicePackageVersionRepository.save(any(ServicePackageVersion.class))).thenAnswer(invocation -> {
+            ServicePackageVersion version = invocation.getArgument(0);
+            version.setId(versionId);
+            return version;
+        });
+        when(servicePackageVersionRepository.findByPackageId(packageId)).thenReturn(List.of(savedVersion()));
+        when(packageCurriculumRepository.findByPackageVersionIdOrderByOrderIndexAsc(versionId))
+                .thenReturn(savedCurriculums());
+
+        mentorService.createPackage(mentorId, validRequest());
+
+        ArgumentCaptor<ServicePackageVersion> versionCaptor = ArgumentCaptor.forClass(ServicePackageVersion.class);
+        verify(servicePackageVersionRepository).save(versionCaptor.capture());
+        assertNotNull(versionCaptor.getValue());
+        assertTrue(versionCaptor.getValue().getIsDefault());
+        assertFalse(Boolean.FALSE.equals(versionCaptor.getValue().getIsDefault()));
+    }
+
+    private CreateServicePackageRequest validRequest() {
+        CreateServicePackageRequest request = new CreateServicePackageRequest();
+        request.setName("Career Planning");
+        request.setDescription("Package description");
+        request.setPrice(new BigDecimal("120.00"));
+        request.setDuration(3);
+        request.setDeliveryType("ONLINE");
+
+        CreateServicePackageRequest.CurriculumRequest first = new CreateServicePackageRequest.CurriculumRequest();
+        first.setTitle("Session 1");
+        first.setDescription("Intro");
+        first.setOrderIndex(1);
+        first.setDuration(60);
+
+        CreateServicePackageRequest.CurriculumRequest second = new CreateServicePackageRequest.CurriculumRequest();
+        second.setTitle("Session 2");
+        second.setDescription("Deep dive");
+        second.setOrderIndex(2);
+        second.setDuration(90);
+
+        request.setCurriculums(List.of(first, second));
+        return request;
+    }
+
+    private ServicePackageVersion savedVersion() {
+        ServicePackageVersion version = new ServicePackageVersion();
+        version.setId(versionId);
+        version.setPackageId(packageId);
+        version.setPrice(new BigDecimal("120.00"));
+        version.setDuration(3);
+        version.setDeliveryType("ONLINE");
+        version.setIsDefault(true);
+        return version;
+    }
+
+    private List<PackageCurriculum> savedCurriculums() {
+        PackageCurriculum first = new PackageCurriculum();
+        first.setId(UUID.randomUUID());
+        first.setPackageVersionId(versionId);
+        first.setTitle("Session 1");
+        first.setDescription("Intro");
+        first.setOrderIndex(1);
+        first.setDuration(60);
+
+        PackageCurriculum second = new PackageCurriculum();
+        second.setId(UUID.randomUUID());
+        second.setPackageVersionId(versionId);
+        second.setTitle("Session 2");
+        second.setDescription("Deep dive");
+        second.setOrderIndex(2);
+        second.setDuration(90);
+
+        return List.of(first, second);
+    }
+}
