@@ -3,7 +3,11 @@ package com.unishare.api.modules.service.controller;
 import com.unishare.api.common.dto.ApiResponse;
 import com.unishare.api.config.OpenApiConfig;
 import com.unishare.api.infrastructure.security.CustomUserPrincipal;
-import com.unishare.api.modules.service.dto.MentorDto.*;
+import com.unishare.api.modules.service.dto.MentorDto.CurriculumItemRequest;
+import com.unishare.api.modules.service.dto.MentorDto.CurriculumItemResponse;
+import com.unishare.api.modules.service.dto.MentorDto.MentorProfileRequest;
+import com.unishare.api.modules.service.dto.MentorDto.MentorProfileResponse;
+import com.unishare.api.modules.service.dto.MentorDto.ServicePackageResponse;
 import com.unishare.api.modules.service.dto.request.CreateServicePackageRequest;
 import com.unishare.api.modules.service.service.MentorService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -13,13 +17,22 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.security.PermitAll;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
-
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/mentors")
@@ -29,20 +42,19 @@ public class MentorController {
 
     private final MentorService mentorService;
 
-    // Public Mentor Directory
     @Operation(summary = "Danh sách mentor đã xác minh")
     @SecurityRequirements(value = {})
     @GetMapping
-    public ResponseEntity<ApiResponse<List<MentorProfileResponse>>> getAllVerifiedMentors() {
-        return ResponseEntity.ok(ApiResponse.<List<MentorProfileResponse>>build()
-                .withData(mentorService.getAllVerifiedMentors()));
+    public ResponseEntity<ApiResponse<Page<MentorProfileResponse>>> getAllVerifiedMentors(Pageable pageable) {
+        return ResponseEntity.ok(ApiResponse.<Page<MentorProfileResponse>>build()
+                .withData(mentorService.getAllVerifiedMentors(pageable)));
     }
 
     @Operation(summary = "Chi tiết mentor")
     @PermitAll
     @SecurityRequirements(value = {})
     @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<MentorProfileResponse>> getMentorProfile(@PathVariable java.util.UUID id) {
+    public ResponseEntity<ApiResponse<MentorProfileResponse>> getMentorProfile(@PathVariable UUID id) {
         return ResponseEntity.ok(ApiResponse.<MentorProfileResponse>build()
                 .withData(mentorService.getMentorProfile(id)));
     }
@@ -51,12 +63,11 @@ public class MentorController {
     @PermitAll
     @SecurityRequirements(value = {})
     @GetMapping("/{id}/packages")
-    public ResponseEntity<ApiResponse<List<ServicePackageResponse>>> getMentorPackages(@PathVariable java.util.UUID id) {
+    public ResponseEntity<ApiResponse<List<ServicePackageResponse>>> getMentorPackages(@PathVariable UUID id) {
         return ResponseEntity.ok(ApiResponse.<List<ServicePackageResponse>>build()
                 .withData(mentorService.getMentorPackages(id)));
     }
 
-    // Mentor Management (for the mentor themselves)
     @Operation(summary = "Cập nhật hồ sơ mentor (me)")
     @SecurityRequirement(name = OpenApiConfig.BEARER_JWT)
     @PreAuthorize("hasRole('MENTOR')")
@@ -86,7 +97,7 @@ public class MentorController {
     @DeleteMapping("/me/packages/{pkgId}")
     public ResponseEntity<ApiResponse<Void>> deletePackage(
             @AuthenticationPrincipal CustomUserPrincipal principal,
-            @PathVariable java.util.UUID pkgId) {
+            @PathVariable UUID pkgId) {
         mentorService.deletePackage(principal.getUserId(), pkgId);
         return ResponseEntity.ok(ApiResponse.<Void>build().withMessage("Package deleted"));
     }
@@ -97,8 +108,8 @@ public class MentorController {
     @PostMapping("/me/packages/{pkgId}/versions/{verId}/curriculums")
     public ResponseEntity<ApiResponse<CurriculumItemResponse>> addCurriculum(
             @AuthenticationPrincipal CustomUserPrincipal principal,
-            @PathVariable java.util.UUID pkgId,
-            @PathVariable java.util.UUID verId,
+            @PathVariable UUID pkgId,
+            @PathVariable UUID verId,
             @Valid @RequestBody CurriculumItemRequest request) {
         return ResponseEntity.ok(ApiResponse.<CurriculumItemResponse>build()
                 .withData(mentorService.addCurriculumItem(principal.getUserId(), pkgId, verId, request)));
@@ -110,8 +121,8 @@ public class MentorController {
     @GetMapping("/me/packages/{pkgId}/versions/{verId}/curriculums")
     public ResponseEntity<ApiResponse<List<CurriculumItemResponse>>> listCurriculum(
             @AuthenticationPrincipal CustomUserPrincipal principal,
-            @PathVariable java.util.UUID pkgId,
-            @PathVariable java.util.UUID verId) {
+            @PathVariable UUID pkgId,
+            @PathVariable UUID verId) {
         return ResponseEntity.ok(ApiResponse.<List<CurriculumItemResponse>>build()
                 .withData(mentorService.listCurriculum(principal.getUserId(), pkgId, verId)));
     }
@@ -122,7 +133,7 @@ public class MentorController {
     @DeleteMapping("/me/curriculums/{curriculumId}")
     public ResponseEntity<ApiResponse<Void>> deleteCurriculum(
             @AuthenticationPrincipal CustomUserPrincipal principal,
-            @PathVariable java.util.UUID curriculumId) {
+            @PathVariable UUID curriculumId) {
         mentorService.deleteCurriculumItem(principal.getUserId(), curriculumId);
         return ResponseEntity.ok(ApiResponse.<Void>build().withMessage("Đã xóa mục curriculum"));
     }

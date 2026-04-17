@@ -2,6 +2,7 @@ package com.unishare.api.modules.service.service.impl;
 
 import com.unishare.api.common.dto.AppException;
 import com.unishare.api.modules.service.dto.MentorDto;
+import com.unishare.api.modules.service.entity.MentorProfile;
 import com.unishare.api.modules.service.dto.request.CreateServicePackageRequest;
 import com.unishare.api.modules.service.entity.PackageCurriculum;
 import com.unishare.api.modules.service.entity.ServicePackage;
@@ -18,8 +19,12 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 
 import java.math.BigDecimal;
+import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
@@ -131,6 +136,26 @@ class MentorServiceImplTest {
         assertNotNull(versionCaptor.getValue());
         assertTrue(versionCaptor.getValue().getIsDefault());
         assertFalse(Boolean.FALSE.equals(versionCaptor.getValue().getIsDefault()));
+    }
+
+    @Test
+    void getAllVerifiedMentors_whenPaged_shouldUseVerifiedStatusAndMapPage() {
+        MentorProfile profile = new MentorProfile();
+        profile.setUserId(mentorId);
+        profile.setHeadline("Career mentor");
+        profile.setExpertise("Product");
+        profile.setVerificationStatus("verified");
+
+        PageRequest pageable = PageRequest.of(0, 5);
+        when(mentorProfileRepository.findByVerificationStatus("verified", pageable))
+                .thenReturn(new PageImpl<>(List.of(profile), pageable, 1));
+        when(servicePackageRepository.findByMentorId(mentorId)).thenReturn(Collections.emptyList());
+
+        Page<MentorDto.MentorProfileResponse> response = mentorService.getAllVerifiedMentors(pageable);
+
+        assertEquals(1, response.getTotalElements());
+        assertEquals(mentorId, response.getContent().get(0).getUserId());
+        assertEquals("verified", response.getContent().get(0).getVerificationStatus());
     }
 
     private CreateServicePackageRequest validRequest() {

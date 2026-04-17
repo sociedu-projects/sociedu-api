@@ -1,20 +1,28 @@
 package com.unishare.api.modules.service.service;
 
-import com.unishare.api.modules.service.dto.MentorDto.*;
+import com.unishare.api.modules.service.dto.MentorDto.CurriculumItemRequest;
+import com.unishare.api.modules.service.dto.MentorDto.CurriculumItemResponse;
+import com.unishare.api.modules.service.dto.MentorDto.MentorProfileRequest;
+import com.unishare.api.modules.service.dto.MentorDto.MentorProfileResponse;
+import com.unishare.api.modules.service.dto.MentorDto.ServicePackageResponse;
 import com.unishare.api.modules.service.dto.request.CreateServicePackageRequest;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 import java.util.UUID;
 
 public interface MentorService {
-    // Mentor Profile
     MentorProfileResponse getMentorProfile(UUID mentorId);
-    MentorProfileResponse createOrUpdateProfile(UUID userId, MentorProfileRequest request);
-    List<MentorProfileResponse> getAllVerifiedMentors();
 
-    // Packages
+    MentorProfileResponse createOrUpdateProfile(UUID userId, MentorProfileRequest request);
+
+    Page<MentorProfileResponse> getAllVerifiedMentors(Pageable pageable);
+
     List<ServicePackageResponse> getMentorPackages(UUID mentorId);
+
     ServicePackageResponse createPackage(UUID mentorId, CreateServicePackageRequest request);
+
     void deletePackage(UUID mentorId, UUID packageId);
 
     CurriculumItemResponse addCurriculumItem(UUID mentorId, UUID packageId, UUID versionId, CurriculumItemRequest request);

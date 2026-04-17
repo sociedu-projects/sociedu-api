@@ -15,6 +15,8 @@ import com.unishare.api.modules.service.repository.ServicePackageRepository;
 import com.unishare.api.modules.service.repository.ServicePackageVersionRepository;
 import com.unishare.api.modules.service.service.MentorService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -74,10 +76,9 @@ public class MentorServiceImpl implements MentorService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<MentorProfileResponse> getAllVerifiedMentors() {
-        return mentorProfileRepository.findByVerificationStatus("verified").stream()
-                .map(profile -> getMentorProfile(profile.getUserId()))
-                .collect(Collectors.toList());
+    public Page<MentorProfileResponse> getAllVerifiedMentors(Pageable pageable) {
+        return mentorProfileRepository.findByVerificationStatus(MentorVerificationStatuses.VERIFIED, pageable)
+                .map(this::mapToMentorProfileResponse);
     }
 
     @Override
@@ -148,6 +149,21 @@ public class MentorServiceImpl implements MentorService {
                 .versions(versions.stream()
                         .map(version -> mapVersion(version, curriculumsByVersionId.getOrDefault(version.getId(), List.of())))
                         .collect(Collectors.toList()))
+                .build();
+    }
+
+    private MentorProfileResponse mapToMentorProfileResponse(MentorProfile profile) {
+        List<ServicePackage> packages = servicePackageRepository.findByMentorId(profile.getUserId());
+
+        return MentorProfileResponse.builder()
+                .userId(profile.getUserId())
+                .headline(profile.getHeadline())
+                .expertise(profile.getExpertise())
+                .basePrice(profile.getBasePrice())
+                .ratingAvg(profile.getRatingAvg())
+                .sessionsCompleted(profile.getSessionsCompleted())
+                .verificationStatus(profile.getVerificationStatus())
+                .packages(packages.stream().map(this::mapToPackageResponse).collect(Collectors.toList()))
                 .build();
     }
 
