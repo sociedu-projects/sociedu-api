@@ -1,6 +1,7 @@
 package com.unishare.api.modules.service.service.impl;
 
 import com.unishare.api.common.dto.AppException;
+import com.unishare.api.common.constants.MentorVerificationStatuses;
 import com.unishare.api.modules.service.dto.MentorDto;
 import com.unishare.api.modules.service.entity.MentorProfile;
 import com.unishare.api.modules.service.dto.request.CreateServicePackageRequest;
@@ -26,6 +27,7 @@ import org.springframework.data.domain.PageRequest;
 import java.math.BigDecimal;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -179,6 +181,54 @@ class MentorServiceImplTest {
     }
 
     @Test
+    void createOrUpdateProfile_whenProfileDoesNotExist_shouldCreatePendingProfile() {
+        MentorDto.MentorProfileRequest request = new MentorDto.MentorProfileRequest();
+        request.setHeadline("Career mentor");
+        request.setExpertise("Product");
+        request.setBasePrice(new BigDecimal("100.00"));
+
+        when(mentorProfileRepository.findById(mentorId))
+                .thenReturn(Optional.empty())
+                .thenReturn(Optional.of(savedProfile(MentorVerificationStatuses.PENDING)));
+        when(mentorProfileRepository.save(any(MentorProfile.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        MentorDto.MentorProfileResponse response = mentorService.createOrUpdateProfile(mentorId, request);
+
+        ArgumentCaptor<MentorProfile> profileCaptor = ArgumentCaptor.forClass(MentorProfile.class);
+        verify(mentorProfileRepository).save(profileCaptor.capture());
+        assertEquals(mentorId, profileCaptor.getValue().getUserId());
+        assertEquals(MentorVerificationStatuses.PENDING, profileCaptor.getValue().getVerificationStatus());
+        assertEquals("Career mentor", response.getHeadline());
+        assertEquals(MentorVerificationStatuses.PENDING, response.getVerificationStatus());
+    }
+
+    @Test
+    void createOrUpdateProfile_whenProfileExists_shouldPreserveVerificationStatus() {
+        MentorProfile existingProfile = savedProfile(MentorVerificationStatuses.VERIFIED);
+        existingProfile.setHeadline("Old headline");
+        existingProfile.setExpertise("Old expertise");
+
+        MentorDto.MentorProfileRequest request = new MentorDto.MentorProfileRequest();
+        request.setHeadline("New headline");
+        request.setExpertise("New expertise");
+        request.setBasePrice(new BigDecimal("200.00"));
+
+        when(mentorProfileRepository.findById(mentorId))
+                .thenReturn(Optional.of(existingProfile))
+                .thenReturn(Optional.of(savedProfile(MentorVerificationStatuses.VERIFIED)));
+        when(mentorProfileRepository.save(any(MentorProfile.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        MentorDto.MentorProfileResponse response = mentorService.createOrUpdateProfile(mentorId, request);
+
+        ArgumentCaptor<MentorProfile> profileCaptor = ArgumentCaptor.forClass(MentorProfile.class);
+        verify(mentorProfileRepository).save(profileCaptor.capture());
+        assertEquals(MentorVerificationStatuses.VERIFIED, profileCaptor.getValue().getVerificationStatus());
+        assertEquals("New headline", profileCaptor.getValue().getHeadline());
+        assertEquals("New expertise", profileCaptor.getValue().getExpertise());
+        assertEquals(MentorVerificationStatuses.VERIFIED, response.getVerificationStatus());
+    }
+
+    @Test
     void getMentorPackages_whenPaged_shouldReturnOnlyMappedActivePackages() {
         ServicePackage servicePackage = new ServicePackage();
         servicePackage.setId(packageId);
@@ -223,6 +273,16 @@ class MentorServiceImplTest {
 
         request.setCurriculums(List.of(first, second));
         return request;
+    }
+
+    private MentorProfile savedProfile(String verificationStatus) {
+        MentorProfile profile = new MentorProfile();
+        profile.setUserId(mentorId);
+        profile.setHeadline("Career mentor");
+        profile.setExpertise("Product");
+        profile.setBasePrice(new BigDecimal("100.00"));
+        profile.setVerificationStatus(verificationStatus);
+        return profile;
     }
 
     private ServicePackageVersion savedVersion() {

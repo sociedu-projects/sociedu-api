@@ -76,7 +76,7 @@ public class MentorController {
     @PutMapping("/me")
     public ResponseEntity<ApiResponse<MentorProfileResponse>> updateMyProfile(
             @AuthenticationPrincipal CustomUserPrincipal principal,
-            @RequestBody MentorProfileRequest request) {
+            @Valid @RequestBody MentorProfileRequest request) {
         MentorProfileResponse resp = mentorService.createOrUpdateProfile(principal.getUserId(), request);
         return ResponseEntity.ok(ApiResponse.<MentorProfileResponse>build()
                 .withData(resp));
