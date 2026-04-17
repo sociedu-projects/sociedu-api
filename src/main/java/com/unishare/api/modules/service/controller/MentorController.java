@@ -31,7 +31,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -121,12 +120,13 @@ public class MentorController {
     @SecurityRequirement(name = OpenApiConfig.BEARER_JWT)
     @PreAuthorize("hasRole('MENTOR')")
     @GetMapping("/me/packages/{pkgId}/versions/{verId}/curriculums")
-    public ResponseEntity<ApiResponse<List<CurriculumItemResponse>>> listCurriculum(
+    public ResponseEntity<ApiResponse<Page<CurriculumItemResponse>>> listCurriculum(
             @AuthenticationPrincipal CustomUserPrincipal principal,
             @PathVariable UUID pkgId,
-            @PathVariable UUID verId) {
-        return ResponseEntity.ok(ApiResponse.<List<CurriculumItemResponse>>build()
-                .withData(mentorService.listCurriculum(principal.getUserId(), pkgId, verId)));
+            @PathVariable UUID verId,
+            Pageable pageable) {
+        return ResponseEntity.ok(ApiResponse.<Page<CurriculumItemResponse>>build()
+                .withData(mentorService.listCurriculum(principal.getUserId(), pkgId, verId, pageable)));
     }
 
     @Operation(summary = "Xóa mục curriculum")

@@ -66,14 +66,14 @@ public class MentorServiceImpl implements MentorService {
     @Transactional(readOnly = true)
     public Page<MentorProfileResponse> getAllVerifiedMentors(Pageable pageable) {
         return mentorProfileRepository.findByVerificationStatus(MentorVerificationStatuses.VERIFIED, pageable)
-                .map(this::mapToMentorProfileResponse);
+                .map(this::mapToMentorProfileOnlyResponse);
     }
 
     @Override
     @Transactional(readOnly = true)
     public Page<ServicePackageResponse> getMentorPackages(UUID mentorId, Pageable pageable) {
         return servicePackageRepository.findByMentorIdAndIsActiveTrue(mentorId, pageable)
-                .map(this::mapToPackageResponse);
+                .map(this::mapToCatalogPackageResponse);
     }
 
     @Override
@@ -139,21 +139,6 @@ public class MentorServiceImpl implements MentorService {
                 .build();
     }
 
-    private MentorProfileResponse mapToMentorProfileResponse(MentorProfile profile) {
-        List<ServicePackage> packages = servicePackageRepository.findByMentorId(profile.getUserId());
-
-        return MentorProfileResponse.builder()
-                .userId(profile.getUserId())
-                .headline(profile.getHeadline())
-                .expertise(profile.getExpertise())
-                .basePrice(profile.getBasePrice())
-                .ratingAvg(profile.getRatingAvg())
-                .sessionsCompleted(profile.getSessionsCompleted())
-                .verificationStatus(profile.getVerificationStatus())
-                .packages(packages.stream().map(this::mapToPackageResponse).collect(Collectors.toList()))
-                .build();
-    }
-
     private MentorProfileResponse mapToMentorProfileOnlyResponse(MentorProfile profile) {
         return MentorProfileResponse.builder()
                 .userId(profile.getUserId())
@@ -163,6 +148,26 @@ public class MentorServiceImpl implements MentorService {
                 .ratingAvg(profile.getRatingAvg())
                 .sessionsCompleted(profile.getSessionsCompleted())
                 .verificationStatus(profile.getVerificationStatus())
+                .build();
+    }
+
+    private ServicePackageResponse mapToCatalogPackageResponse(ServicePackage pkg) {
+        List<ServicePackageVersionResponse> versions = servicePackageVersionRepository.findByPackageId(pkg.getId()).stream()
+                .filter(version -> Boolean.TRUE.equals(version.getIsDefault()))
+                .map(version -> mapVersion(
+                        version,
+                        packageCurriculumRepository.findByPackageVersionIdOrderByOrderIndexAsc(version.getId()).stream()
+                                .map(this::mapCurriculum)
+                                .toList()))
+                .toList();
+
+        return ServicePackageResponse.builder()
+                .id(pkg.getId())
+                .mentorId(pkg.getMentorId())
+                .name(pkg.getName())
+                .description(pkg.getDescription())
+                .isActive(pkg.getIsActive())
+                .versions(versions)
                 .build();
     }
 
@@ -180,17 +185,16 @@ public class MentorServiceImpl implements MentorService {
     @Override
     @Transactional
     public CurriculumItemResponse addCurriculumItem(UUID mentorId, UUID packageId, UUID versionId, CurriculumItemRequest request) {
-        ServicePackage pkg = servicePackageRepository.findById(packageId)
-                .filter(p -> p.getMentorId().equals(mentorId))
-                .orElseThrow(() -> new AppException(ServiceErrorCode.PACKAGE_NOT_FOUND, "Package not found"));
-        ServicePackageVersion ver = servicePackageVersionRepository.findById(versionId)
-                .filter(v -> v.getPackageId().equals(pkg.getId()))
-                .orElseThrow(() -> new AppException(ServiceErrorCode.SERVICE_VERSION_NOT_FOUND, "Version not found"));
+        ServicePackageVersion ver = requireOwnedVersion(mentorId, packageId, versionId);
+        if (packageCurriculumRepository.existsByPackageVersionIdAndOrderIndex(ver.getId(), request.getOrderIndex())) {
+            throw new AppException(ServiceErrorCode.DUPLICATE_CURRICULUM_ORDER_INDEX,
+                    "Thứ tự curriculum không được trùng nhau trong cùng một phiên bản gói");
+        }
         PackageCurriculum c = new PackageCurriculum();
         c.setPackageVersionId(ver.getId());
         c.setTitle(request.getTitle());
         c.setDescription(request.getDescription());
-        c.setOrderIndex(request.getOrderIndex() != null ? request.getOrderIndex() : 0);
+        c.setOrderIndex(request.getOrderIndex());
         c.setDuration(request.getDuration());
         c = packageCurriculumRepository.save(c);
         return mapCurriculum(c);
@@ -198,14 +202,10 @@ public class MentorServiceImpl implements MentorService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<CurriculumItemResponse> listCurriculum(UUID mentorId, UUID packageId, UUID versionId) {
-        assertPackageOwner(mentorId, packageId);
-        ServicePackageVersion ver = servicePackageVersionRepository.findById(versionId)
-                .filter(v -> v.getPackageId().equals(packageId))
-                .orElseThrow(() -> new AppException(ServiceErrorCode.SERVICE_VERSION_NOT_FOUND, "Version not found"));
-        return packageCurriculumRepository.findByPackageVersionIdOrderByOrderIndexAsc(ver.getId()).stream()
-                .map(this::mapCurriculum)
-                .collect(Collectors.toList());
+    public Page<CurriculumItemResponse> listCurriculum(UUID mentorId, UUID packageId, UUID versionId, Pageable pageable) {
+        ServicePackageVersion ver = requireOwnedVersion(mentorId, packageId, versionId);
+        return packageCurriculumRepository.findByPackageVersionIdOrderByOrderIndexAsc(ver.getId(), pageable)
+                .map(this::mapCurriculum);
     }
 
     @Override
@@ -223,6 +223,15 @@ public class MentorServiceImpl implements MentorService {
         servicePackageRepository.findById(packageId)
                 .filter(p -> p.getMentorId().equals(mentorId))
                 .orElseThrow(() -> new AppException(ServiceErrorCode.PACKAGE_NOT_FOUND, "Package not found"));
+    }
+
+    private ServicePackageVersion requireOwnedVersion(UUID mentorId, UUID packageId, UUID versionId) {
+        ServicePackage pkg = servicePackageRepository.findById(packageId)
+                .filter(p -> p.getMentorId().equals(mentorId))
+                .orElseThrow(() -> new AppException(ServiceErrorCode.PACKAGE_NOT_FOUND, "Package not found"));
+        return servicePackageVersionRepository.findById(versionId)
+                .filter(v -> v.getPackageId().equals(pkg.getId()))
+                .orElseThrow(() -> new AppException(ServiceErrorCode.SERVICE_VERSION_NOT_FOUND, "Version not found"));
     }
 
     private CurriculumItemResponse mapCurriculum(PackageCurriculum c) {

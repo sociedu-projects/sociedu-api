@@ -9,7 +9,6 @@ import com.unishare.api.modules.service.dto.request.CreateServicePackageRequest;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
-import java.util.List;
 import java.util.UUID;
 
 public interface MentorService {
@@ -27,7 +26,7 @@ public interface MentorService {
 
     CurriculumItemResponse addCurriculumItem(UUID mentorId, UUID packageId, UUID versionId, CurriculumItemRequest request);
 
-    List<CurriculumItemResponse> listCurriculum(UUID mentorId, UUID packageId, UUID versionId);
+    Page<CurriculumItemResponse> listCurriculum(UUID mentorId, UUID packageId, UUID versionId, Pageable pageable);
 
     void deleteCurriculumItem(UUID mentorId, UUID curriculumId);
 }

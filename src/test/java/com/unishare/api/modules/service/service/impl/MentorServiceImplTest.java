@@ -152,13 +152,13 @@ class MentorServiceImplTest {
         PageRequest pageable = PageRequest.of(0, 5);
         when(mentorProfileRepository.findByVerificationStatus("verified", pageable))
                 .thenReturn(new PageImpl<>(List.of(profile), pageable, 1));
-        when(servicePackageRepository.findByMentorId(mentorId)).thenReturn(Collections.emptyList());
 
         Page<MentorDto.MentorProfileResponse> response = mentorService.getAllVerifiedMentors(pageable);
 
         assertEquals(1, response.getTotalElements());
         assertEquals(mentorId, response.getContent().get(0).getUserId());
         assertEquals("verified", response.getContent().get(0).getVerificationStatus());
+        assertEquals(null, response.getContent().get(0).getPackages());
     }
 
     @Test
@@ -249,6 +249,51 @@ class MentorServiceImplTest {
         assertEquals(1, response.getTotalElements());
         assertEquals("Career Planning", response.getContent().get(0).getName());
         assertEquals(1, response.getContent().get(0).getVersions().size());
+        assertTrue(response.getContent().get(0).getVersions().get(0).getIsDefault());
+    }
+
+    @Test
+    void addCurriculumItem_whenOrderIndexDuplicatedInVersion_shouldThrowBusinessException() {
+        ServicePackage servicePackage = new ServicePackage();
+        servicePackage.setId(packageId);
+        servicePackage.setMentorId(mentorId);
+
+        ServicePackageVersion version = savedVersion();
+        MentorDto.CurriculumItemRequest request = new MentorDto.CurriculumItemRequest();
+        request.setTitle("Session 3");
+        request.setDescription("Wrap up");
+        request.setOrderIndex(1);
+        request.setDuration(45);
+
+        when(servicePackageRepository.findById(packageId)).thenReturn(Optional.of(servicePackage));
+        when(servicePackageVersionRepository.findById(versionId)).thenReturn(Optional.of(version));
+        when(packageCurriculumRepository.existsByPackageVersionIdAndOrderIndex(versionId, 1)).thenReturn(true);
+
+        AppException exception = assertThrows(AppException.class,
+                () -> mentorService.addCurriculumItem(mentorId, packageId, versionId, request));
+
+        assertSame(ServiceErrorCode.DUPLICATE_CURRICULUM_ORDER_INDEX, exception.getExceptionCode());
+    }
+
+    @Test
+    void listCurriculum_whenPaged_shouldReturnOrderedPage() {
+        ServicePackage servicePackage = new ServicePackage();
+        servicePackage.setId(packageId);
+        servicePackage.setMentorId(mentorId);
+        ServicePackageVersion version = savedVersion();
+        PageRequest pageable = PageRequest.of(0, 10);
+
+        when(servicePackageRepository.findById(packageId)).thenReturn(Optional.of(servicePackage));
+        when(servicePackageVersionRepository.findById(versionId)).thenReturn(Optional.of(version));
+        when(packageCurriculumRepository.findByPackageVersionIdOrderByOrderIndexAsc(versionId, pageable))
+                .thenReturn(new PageImpl<>(savedCurriculums(), pageable, 2));
+
+        Page<MentorDto.CurriculumItemResponse> response = mentorService.listCurriculum(mentorId, packageId, versionId, pageable);
+
+        assertEquals(2, response.getTotalElements());
+        assertEquals(List.of(1, 2), response.getContent().stream()
+                .map(MentorDto.CurriculumItemResponse::getOrderIndex)
+                .toList());
     }
 
     private CreateServicePackageRequest validRequest() {
