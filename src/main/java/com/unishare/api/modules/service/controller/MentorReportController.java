@@ -11,12 +11,18 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -24,18 +30,18 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @SecurityRequirement(name = OpenApiConfig.BEARER_JWT)
 @PreAuthorize("hasRole('MENTOR')")
-@Tag(name = "Progress reports — Mentor")
+@Tag(name = "Progress reports â€” Mentor")
 public class MentorReportController {
 
     private final ProgressReportService reportService;
 
     @Operation(summary = "Báo cáo gán cho mentor")
     @GetMapping
-    public ResponseEntity<ApiResponse<List<ProgressReportResponse>>> getAssignedReports(
-            @AuthenticationPrincipal CustomUserPrincipal principal) {
-            
-        List<ProgressReportResponse> reports = reportService.getMentorReports(principal.getUserId());
-        return ResponseEntity.ok(ApiResponse.<List<ProgressReportResponse>>build()
+    public ResponseEntity<ApiResponse<Page<ProgressReportResponse>>> getAssignedReports(
+            @AuthenticationPrincipal CustomUserPrincipal principal,
+            Pageable pageable) {
+        Page<ProgressReportResponse> reports = reportService.getMentorReports(principal.getUserId(), pageable);
+        return ResponseEntity.ok(ApiResponse.<Page<ProgressReportResponse>>build()
                 .withData(reports)
                 .withMessage("Success"));
     }
@@ -46,7 +52,6 @@ public class MentorReportController {
             @AuthenticationPrincipal CustomUserPrincipal principal,
             @PathVariable UUID id,
             @Valid @RequestBody ReviewReportRequest request) {
-            
         ProgressReportResponse response = reportService.reviewReport(principal.getUserId(), id, request);
         return ResponseEntity.ok(ApiResponse.<ProgressReportResponse>build()
                 .withData(response)

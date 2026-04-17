@@ -17,8 +17,12 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -112,6 +116,24 @@ class ProgressReportServiceImplTest {
 
         assertSame(ProgressReportErrorCode.PROGRESS_REPORT_SELF_TARGET_NOT_ALLOWED, exception.getExceptionCode());
         verify(progressReportRepository, never()).save(any());
+    }
+
+    @Test
+    void getMentorReports_whenPaged_shouldMapPageContent() {
+        ProgressReport report = existingReport();
+        PageRequest pageable = PageRequest.of(0, 10);
+
+        when(progressReportRepository.findByMentorId(mentorId, pageable))
+                .thenReturn(new PageImpl<>(List.of(report), pageable, 1));
+        when(userService.getProfile(menteeId)).thenReturn(profile(menteeId, "Jane", "Doe"));
+        when(userService.getProfile(mentorId)).thenReturn(profile(mentorId, "John", "Mentor"));
+
+        Page<ProgressReportResponse> response = progressReportService.getMentorReports(mentorId, pageable);
+
+        assertEquals(1, response.getTotalElements());
+        assertEquals(1, response.getContent().size());
+        assertEquals(reportId, response.getContent().get(0).getId());
+        assertEquals("Jane Doe", response.getContent().get(0).getMenteeName());
     }
 
     @Test
