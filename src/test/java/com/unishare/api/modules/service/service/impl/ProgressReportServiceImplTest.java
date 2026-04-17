@@ -119,6 +119,24 @@ class ProgressReportServiceImplTest {
     }
 
     @Test
+    void getMenteeReports_whenPaged_shouldMapPageContent() {
+        ProgressReport report = existingReport();
+        PageRequest pageable = PageRequest.of(0, 10);
+
+        when(progressReportRepository.findByMenteeId(menteeId, pageable))
+                .thenReturn(new PageImpl<>(List.of(report), pageable, 1));
+        when(userService.getProfile(menteeId)).thenReturn(profile(menteeId, "Jane", "Doe"));
+        when(userService.getProfile(mentorId)).thenReturn(profile(mentorId, "John", "Mentor"));
+
+        Page<ProgressReportResponse> response = progressReportService.getMenteeReports(menteeId, pageable);
+
+        assertEquals(1, response.getTotalElements());
+        assertEquals(1, response.getContent().size());
+        assertEquals(reportId, response.getContent().get(0).getId());
+        assertEquals("John Mentor", response.getContent().get(0).getMentorName());
+    }
+
+    @Test
     void getMentorReports_whenPaged_shouldMapPageContent() {
         ProgressReport report = existingReport();
         PageRequest pageable = PageRequest.of(0, 10);

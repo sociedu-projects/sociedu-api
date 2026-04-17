@@ -12,6 +12,7 @@ import java.util.UUID;
 @Repository
 public interface ProgressReportRepository extends JpaRepository<ProgressReport, UUID> {
     List<ProgressReport> findByMenteeIdOrderByCreatedAtDesc(UUID menteeId);
+    Page<ProgressReport> findByMenteeId(UUID menteeId, Pageable pageable);
 
     List<ProgressReport> findByMentorIdOrderByCreatedAtDesc(UUID mentorId);
 

@@ -54,11 +54,9 @@ public class ProgressReportServiceImpl implements ProgressReportService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<ProgressReportResponse> getMenteeReports(UUID menteeId) {
-        return progressReportRepository.findByMenteeIdOrderByCreatedAtDesc(menteeId)
-                .stream()
-                .map(this::mapToResponse)
-                .toList();
+    public Page<ProgressReportResponse> getMenteeReports(UUID menteeId, Pageable pageable) {
+        return progressReportRepository.findByMenteeId(menteeId, pageable)
+                .map(this::mapToResponse);
     }
 
     @Override

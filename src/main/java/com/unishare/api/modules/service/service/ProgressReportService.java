@@ -12,7 +12,7 @@ import java.util.UUID;
 public interface ProgressReportService {
     ProgressReportResponse createReport(UUID menteeId, CreateReportRequest request);
 
-    List<ProgressReportResponse> getMenteeReports(UUID menteeId);
+    Page<ProgressReportResponse> getMenteeReports(UUID menteeId, Pageable pageable);
 
     Page<ProgressReportResponse> getMentorReports(UUID mentorId, Pageable pageable);
 
