@@ -35,6 +35,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -156,6 +157,25 @@ class MentorServiceImplTest {
         assertEquals(1, response.getTotalElements());
         assertEquals(mentorId, response.getContent().get(0).getUserId());
         assertEquals("verified", response.getContent().get(0).getVerificationStatus());
+    }
+
+    @Test
+    void getMentorProfile_shouldReturnProfileOnlyWithoutEmbeddedPackages() {
+        MentorProfile profile = new MentorProfile();
+        profile.setUserId(mentorId);
+        profile.setHeadline("Career mentor");
+        profile.setExpertise("Product");
+        profile.setVerificationStatus("verified");
+
+        when(mentorProfileRepository.findById(mentorId)).thenReturn(java.util.Optional.of(profile));
+
+        MentorDto.MentorProfileResponse response = mentorService.getMentorProfile(mentorId);
+
+        assertEquals(mentorId, response.getUserId());
+        assertEquals("Career mentor", response.getHeadline());
+        assertEquals("verified", response.getVerificationStatus());
+        assertEquals(null, response.getPackages());
+        verify(servicePackageRepository, never()).findByMentorId(mentorId);
     }
 
     @Test

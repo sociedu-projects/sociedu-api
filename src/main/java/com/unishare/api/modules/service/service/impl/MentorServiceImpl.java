@@ -40,19 +40,7 @@ public class MentorServiceImpl implements MentorService {
     public MentorProfileResponse getMentorProfile(UUID mentorId) {
         MentorProfile profile = mentorProfileRepository.findById(mentorId)
                 .orElseThrow(() -> new AppException(ServiceErrorCode.MENTOR_NOT_FOUND, "Mentor not found"));
-
-        List<ServicePackage> packages = servicePackageRepository.findByMentorId(mentorId);
-
-        return MentorProfileResponse.builder()
-                .userId(profile.getUserId())
-                .headline(profile.getHeadline())
-                .expertise(profile.getExpertise())
-                .basePrice(profile.getBasePrice())
-                .ratingAvg(profile.getRatingAvg())
-                .sessionsCompleted(profile.getSessionsCompleted())
-                .verificationStatus(profile.getVerificationStatus())
-                .packages(packages.stream().map(this::mapToPackageResponse).collect(Collectors.toList()))
-                .build();
+        return mapToMentorProfileOnlyResponse(profile);
     }
 
     @Override
@@ -163,6 +151,18 @@ public class MentorServiceImpl implements MentorService {
                 .sessionsCompleted(profile.getSessionsCompleted())
                 .verificationStatus(profile.getVerificationStatus())
                 .packages(packages.stream().map(this::mapToPackageResponse).collect(Collectors.toList()))
+                .build();
+    }
+
+    private MentorProfileResponse mapToMentorProfileOnlyResponse(MentorProfile profile) {
+        return MentorProfileResponse.builder()
+                .userId(profile.getUserId())
+                .headline(profile.getHeadline())
+                .expertise(profile.getExpertise())
+                .basePrice(profile.getBasePrice())
+                .ratingAvg(profile.getRatingAvg())
+                .sessionsCompleted(profile.getSessionsCompleted())
+                .verificationStatus(profile.getVerificationStatus())
                 .build();
     }
 
