@@ -83,10 +83,9 @@ public class MentorServiceImpl implements MentorService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<ServicePackageResponse> getMentorPackages(UUID mentorId) {
-        return servicePackageRepository.findByMentorId(mentorId).stream()
-                .map(this::mapToPackageResponse)
-                .collect(Collectors.toList());
+    public Page<ServicePackageResponse> getMentorPackages(UUID mentorId, Pageable pageable) {
+        return servicePackageRepository.findByMentorIdAndIsActiveTrue(mentorId, pageable)
+                .map(this::mapToPackageResponse);
     }
 
     @Override

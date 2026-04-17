@@ -19,7 +19,7 @@ public interface MentorService {
 
     Page<MentorProfileResponse> getAllVerifiedMentors(Pageable pageable);
 
-    List<ServicePackageResponse> getMentorPackages(UUID mentorId);
+    Page<ServicePackageResponse> getMentorPackages(UUID mentorId, Pageable pageable);
 
     ServicePackageResponse createPackage(UUID mentorId, CreateServicePackageRequest request);
 

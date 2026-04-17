@@ -158,6 +158,29 @@ class MentorServiceImplTest {
         assertEquals("verified", response.getContent().get(0).getVerificationStatus());
     }
 
+    @Test
+    void getMentorPackages_whenPaged_shouldReturnOnlyMappedActivePackages() {
+        ServicePackage servicePackage = new ServicePackage();
+        servicePackage.setId(packageId);
+        servicePackage.setMentorId(mentorId);
+        servicePackage.setName("Career Planning");
+        servicePackage.setDescription("Package description");
+        servicePackage.setIsActive(true);
+
+        PageRequest pageable = PageRequest.of(0, 5);
+        when(servicePackageRepository.findByMentorIdAndIsActiveTrue(mentorId, pageable))
+                .thenReturn(new PageImpl<>(List.of(servicePackage), pageable, 1));
+        when(servicePackageVersionRepository.findByPackageId(packageId)).thenReturn(List.of(savedVersion()));
+        when(packageCurriculumRepository.findByPackageVersionIdOrderByOrderIndexAsc(versionId))
+                .thenReturn(savedCurriculums());
+
+        Page<MentorDto.ServicePackageResponse> response = mentorService.getMentorPackages(mentorId, pageable);
+
+        assertEquals(1, response.getTotalElements());
+        assertEquals("Career Planning", response.getContent().get(0).getName());
+        assertEquals(1, response.getContent().get(0).getVersions().size());
+    }
+
     private CreateServicePackageRequest validRequest() {
         CreateServicePackageRequest request = new CreateServicePackageRequest();
         request.setName("Career Planning");

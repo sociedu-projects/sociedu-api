@@ -59,13 +59,15 @@ public class MentorController {
                 .withData(mentorService.getMentorProfile(id)));
     }
 
-    @Operation(summary = "Gói dịch vụ của mentor")
+    @Operation(summary = "Gói dịch vụ đang mở của mentor")
     @PermitAll
     @SecurityRequirements(value = {})
     @GetMapping("/{id}/packages")
-    public ResponseEntity<ApiResponse<List<ServicePackageResponse>>> getMentorPackages(@PathVariable UUID id) {
-        return ResponseEntity.ok(ApiResponse.<List<ServicePackageResponse>>build()
-                .withData(mentorService.getMentorPackages(id)));
+    public ResponseEntity<ApiResponse<Page<ServicePackageResponse>>> getMentorPackages(
+            @PathVariable UUID id,
+            Pageable pageable) {
+        return ResponseEntity.ok(ApiResponse.<Page<ServicePackageResponse>>build()
+                .withData(mentorService.getMentorPackages(id, pageable)));
     }
 
     @Operation(summary = "Cập nhật hồ sơ mentor (me)")
