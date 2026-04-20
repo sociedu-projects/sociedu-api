@@ -15,5 +15,7 @@ public interface PackageCurriculumRepository extends JpaRepository<PackageCurric
 
     boolean existsByPackageVersionIdAndOrderIndex(UUID packageVersionId, Integer orderIndex);
 
+    boolean existsByPackageVersionIdAndOrderIndexAndIdNot(UUID packageVersionId, Integer orderIndex, UUID id);
+
     void deleteByPackageVersionId(UUID packageVersionId);
 }

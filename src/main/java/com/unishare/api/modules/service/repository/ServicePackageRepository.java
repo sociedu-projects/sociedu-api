@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Repository
@@ -14,4 +15,8 @@ public interface ServicePackageRepository extends JpaRepository<ServicePackage, 
     List<ServicePackage> findByMentorId(UUID mentorId);
 
     Page<ServicePackage> findByMentorIdAndIsActiveTrue(UUID mentorId, Pageable pageable);
+
+    Page<ServicePackage> findByIsActiveTrue(Pageable pageable);
+
+    Optional<ServicePackage> findByIdAndIsActiveTrue(UUID id);
 }

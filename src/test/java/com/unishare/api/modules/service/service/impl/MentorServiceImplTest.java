@@ -5,6 +5,8 @@ import com.unishare.api.common.constants.MentorVerificationStatuses;
 import com.unishare.api.modules.service.dto.MentorDto;
 import com.unishare.api.modules.service.entity.MentorProfile;
 import com.unishare.api.modules.service.dto.request.CreateServicePackageRequest;
+import com.unishare.api.modules.service.dto.request.CreateServicePackageVersionRequest;
+import com.unishare.api.modules.service.dto.request.UpdateServicePackageRequest;
 import com.unishare.api.modules.service.entity.PackageCurriculum;
 import com.unishare.api.modules.service.entity.ServicePackage;
 import com.unishare.api.modules.service.entity.ServicePackageVersion;
@@ -253,6 +255,369 @@ class MentorServiceImplTest {
     }
 
     @Test
+    void getActivePackages_whenPaged_shouldReturnOnlyActiveCatalogPackages() {
+        ServicePackage servicePackage = new ServicePackage();
+        servicePackage.setId(packageId);
+        servicePackage.setMentorId(mentorId);
+        servicePackage.setName("Career Planning");
+        servicePackage.setDescription("Package description");
+        servicePackage.setIsActive(true);
+
+        PageRequest pageable = PageRequest.of(0, 5);
+        when(servicePackageRepository.findByIsActiveTrue(pageable))
+                .thenReturn(new PageImpl<>(List.of(servicePackage), pageable, 1));
+        when(servicePackageVersionRepository.findByPackageId(packageId)).thenReturn(List.of(savedVersion()));
+        when(packageCurriculumRepository.findByPackageVersionIdOrderByOrderIndexAsc(versionId))
+                .thenReturn(savedCurriculums());
+
+        Page<MentorDto.ServicePackageResponse> response = mentorService.getActivePackages(pageable);
+
+        assertEquals(1, response.getTotalElements());
+        assertEquals("Career Planning", response.getContent().get(0).getName());
+        assertEquals(1, response.getContent().get(0).getVersions().size());
+        assertTrue(response.getContent().get(0).getVersions().get(0).getIsDefault());
+    }
+
+    @Test
+    void getActivePackage_whenPackageExists_shouldReturnCatalogPackageResponse() {
+        ServicePackage servicePackage = new ServicePackage();
+        servicePackage.setId(packageId);
+        servicePackage.setMentorId(mentorId);
+        servicePackage.setName("Career Planning");
+        servicePackage.setDescription("Package description");
+        servicePackage.setIsActive(true);
+
+        when(servicePackageRepository.findByIdAndIsActiveTrue(packageId)).thenReturn(Optional.of(servicePackage));
+        when(servicePackageVersionRepository.findByPackageId(packageId)).thenReturn(List.of(savedVersion()));
+        when(packageCurriculumRepository.findByPackageVersionIdOrderByOrderIndexAsc(versionId))
+                .thenReturn(savedCurriculums());
+
+        MentorDto.ServicePackageResponse response = mentorService.getActivePackage(packageId);
+
+        assertEquals(packageId, response.getId());
+        assertEquals("Career Planning", response.getName());
+        assertEquals(1, response.getVersions().size());
+    }
+
+    @Test
+    void getActivePackage_whenPackageMissing_shouldThrowPackageNotFound() {
+        when(servicePackageRepository.findByIdAndIsActiveTrue(packageId)).thenReturn(Optional.empty());
+
+        AppException exception = assertThrows(AppException.class, () -> mentorService.getActivePackage(packageId));
+
+        assertSame(ServiceErrorCode.PACKAGE_NOT_FOUND, exception.getExceptionCode());
+    }
+
+    @Test
+    void createPackageVersion_whenOwnedPackageExists_shouldCreateNewDefaultVersionAndCloneCurriculums() {
+        ServicePackage servicePackage = new ServicePackage();
+        servicePackage.setId(packageId);
+        servicePackage.setMentorId(mentorId);
+        servicePackage.setName("Career Planning");
+        servicePackage.setDescription("Package description");
+        servicePackage.setIsActive(true);
+
+        ServicePackageVersion oldDefaultVersion = savedVersion();
+        oldDefaultVersion.setIsDefault(true);
+
+        UUID newVersionId = UUID.randomUUID();
+        ServicePackageVersion newVersion = new ServicePackageVersion();
+        newVersion.setId(newVersionId);
+        newVersion.setPackageId(packageId);
+        newVersion.setPrice(new BigDecimal("150.00"));
+        newVersion.setDuration(4);
+        newVersion.setDeliveryType("ONLINE");
+        newVersion.setIsDefault(true);
+
+        CreateServicePackageVersionRequest request = new CreateServicePackageVersionRequest();
+        request.setPrice(new BigDecimal("150.00"));
+        request.setDuration(4);
+        request.setDeliveryType("ONLINE");
+
+        when(servicePackageRepository.findById(packageId)).thenReturn(Optional.of(servicePackage));
+        when(servicePackageVersionRepository.findByPackageId(packageId))
+                .thenReturn(List.of(oldDefaultVersion))
+                .thenReturn(List.of(oldDefaultVersion, newVersion));
+        when(servicePackageVersionRepository.saveAll(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(servicePackageVersionRepository.save(any(ServicePackageVersion.class))).thenAnswer(invocation -> {
+            ServicePackageVersion version = invocation.getArgument(0);
+            version.setId(newVersionId);
+            return version;
+        });
+        when(packageCurriculumRepository.findByPackageVersionIdOrderByOrderIndexAsc(versionId))
+                .thenReturn(savedCurriculums());
+        when(packageCurriculumRepository.findByPackageVersionIdOrderByOrderIndexAsc(newVersionId))
+                .thenReturn(savedClonedCurriculums(newVersionId));
+
+        MentorDto.ServicePackageResponse response = mentorService.createPackageVersion(mentorId, packageId, request);
+
+        ArgumentCaptor<List<ServicePackageVersion>> versionsCaptor = ArgumentCaptor.forClass(List.class);
+        verify(servicePackageVersionRepository).saveAll(versionsCaptor.capture());
+        assertFalse(versionsCaptor.getValue().get(0).getIsDefault());
+
+        ArgumentCaptor<ServicePackageVersion> newVersionCaptor = ArgumentCaptor.forClass(ServicePackageVersion.class);
+        verify(servicePackageVersionRepository).save(newVersionCaptor.capture());
+        assertTrue(newVersionCaptor.getValue().getIsDefault());
+        assertEquals(new BigDecimal("150.00"), newVersionCaptor.getValue().getPrice());
+
+        ArgumentCaptor<List<PackageCurriculum>> curriculumCaptor = ArgumentCaptor.forClass(List.class);
+        verify(packageCurriculumRepository).saveAll(curriculumCaptor.capture());
+        assertEquals(2, curriculumCaptor.getValue().size());
+        assertTrue(curriculumCaptor.getValue().stream().allMatch(item -> newVersionId.equals(item.getPackageVersionId())));
+
+        assertEquals(2, response.getVersions().size());
+        assertEquals(1, response.getVersions().stream().filter(MentorDto.ServicePackageVersionResponse::getIsDefault).count());
+    }
+
+    @Test
+    void createPackageVersion_whenNoDefaultVersionExists_shouldThrowVersionNotFound() {
+        ServicePackage servicePackage = new ServicePackage();
+        servicePackage.setId(packageId);
+        servicePackage.setMentorId(mentorId);
+
+        CreateServicePackageVersionRequest request = new CreateServicePackageVersionRequest();
+        request.setPrice(new BigDecimal("150.00"));
+        request.setDuration(4);
+        request.setDeliveryType("ONLINE");
+
+        ServicePackageVersion nonDefaultVersion = savedVersion();
+        nonDefaultVersion.setIsDefault(false);
+
+        when(servicePackageRepository.findById(packageId)).thenReturn(Optional.of(servicePackage));
+        when(servicePackageVersionRepository.findByPackageId(packageId)).thenReturn(List.of(nonDefaultVersion));
+
+        AppException exception = assertThrows(AppException.class,
+                () -> mentorService.createPackageVersion(mentorId, packageId, request));
+
+        assertSame(ServiceErrorCode.SERVICE_VERSION_NOT_FOUND, exception.getExceptionCode());
+        verify(servicePackageVersionRepository, never()).save(any(ServicePackageVersion.class));
+    }
+
+    @Test
+    void createPackageVersion_whenRequesterIsNotOwner_shouldThrowPackageNotFound() {
+        ServicePackage servicePackage = new ServicePackage();
+        servicePackage.setId(packageId);
+        servicePackage.setMentorId(UUID.randomUUID());
+
+        CreateServicePackageVersionRequest request = new CreateServicePackageVersionRequest();
+        request.setPrice(new BigDecimal("150.00"));
+        request.setDuration(4);
+        request.setDeliveryType("ONLINE");
+
+        when(servicePackageRepository.findById(packageId)).thenReturn(Optional.of(servicePackage));
+
+        AppException exception = assertThrows(AppException.class,
+                () -> mentorService.createPackageVersion(mentorId, packageId, request));
+
+        assertSame(ServiceErrorCode.PACKAGE_NOT_FOUND, exception.getExceptionCode());
+        verify(servicePackageVersionRepository, never()).findByPackageId(packageId);
+    }
+
+    @Test
+    void updatePackage_whenOwnedPackageExists_shouldUpdateMetadata() {
+        ServicePackage servicePackage = new ServicePackage();
+        servicePackage.setId(packageId);
+        servicePackage.setMentorId(mentorId);
+        servicePackage.setName("Old package");
+        servicePackage.setDescription("Old description");
+        servicePackage.setIsActive(true);
+
+        UpdateServicePackageRequest request = new UpdateServicePackageRequest();
+        request.setName("Updated package");
+        request.setDescription("Updated description");
+
+        when(servicePackageRepository.findById(packageId)).thenReturn(Optional.of(servicePackage));
+        when(servicePackageRepository.save(any(ServicePackage.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(servicePackageVersionRepository.findByPackageId(packageId)).thenReturn(List.of(savedVersion()));
+        when(packageCurriculumRepository.findByPackageVersionIdOrderByOrderIndexAsc(versionId))
+                .thenReturn(savedCurriculums());
+
+        MentorDto.ServicePackageResponse response = mentorService.updatePackage(mentorId, packageId, request);
+
+        assertEquals("Updated package", response.getName());
+        assertEquals("Updated description", response.getDescription());
+        ArgumentCaptor<ServicePackage> packageCaptor = ArgumentCaptor.forClass(ServicePackage.class);
+        verify(servicePackageRepository).save(packageCaptor.capture());
+        assertEquals("Updated package", packageCaptor.getValue().getName());
+        assertEquals("Updated description", packageCaptor.getValue().getDescription());
+    }
+
+    @Test
+    void updatePackage_whenRequesterIsNotOwner_shouldThrowPackageNotFound() {
+        ServicePackage servicePackage = new ServicePackage();
+        servicePackage.setId(packageId);
+        servicePackage.setMentorId(UUID.randomUUID());
+
+        UpdateServicePackageRequest request = new UpdateServicePackageRequest();
+        request.setName("Updated package");
+        request.setDescription("Updated description");
+
+        when(servicePackageRepository.findById(packageId)).thenReturn(Optional.of(servicePackage));
+
+        AppException exception = assertThrows(AppException.class,
+                () -> mentorService.updatePackage(mentorId, packageId, request));
+
+        assertSame(ServiceErrorCode.PACKAGE_NOT_FOUND, exception.getExceptionCode());
+        verify(servicePackageRepository, never()).save(any(ServicePackage.class));
+    }
+
+    @Test
+    void togglePackage_whenOwnedActivePackageExists_shouldDisablePackage() {
+        ServicePackage servicePackage = new ServicePackage();
+        servicePackage.setId(packageId);
+        servicePackage.setMentorId(mentorId);
+        servicePackage.setName("Career Planning");
+        servicePackage.setDescription("Package description");
+        servicePackage.setIsActive(true);
+
+        when(servicePackageRepository.findById(packageId)).thenReturn(Optional.of(servicePackage));
+        when(servicePackageRepository.save(any(ServicePackage.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(servicePackageVersionRepository.findByPackageId(packageId)).thenReturn(List.of(savedVersion()));
+        when(packageCurriculumRepository.findByPackageVersionIdOrderByOrderIndexAsc(versionId))
+                .thenReturn(savedCurriculums());
+
+        MentorDto.ServicePackageResponse response = mentorService.togglePackage(mentorId, packageId);
+
+        assertFalse(response.getIsActive());
+        ArgumentCaptor<ServicePackage> packageCaptor = ArgumentCaptor.forClass(ServicePackage.class);
+        verify(servicePackageRepository).save(packageCaptor.capture());
+        assertFalse(packageCaptor.getValue().getIsActive());
+    }
+
+    @Test
+    void togglePackage_whenOwnedInactivePackageExists_shouldEnablePackage() {
+        ServicePackage servicePackage = new ServicePackage();
+        servicePackage.setId(packageId);
+        servicePackage.setMentorId(mentorId);
+        servicePackage.setName("Career Planning");
+        servicePackage.setDescription("Package description");
+        servicePackage.setIsActive(false);
+
+        when(servicePackageRepository.findById(packageId)).thenReturn(Optional.of(servicePackage));
+        when(servicePackageRepository.save(any(ServicePackage.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(servicePackageVersionRepository.findByPackageId(packageId)).thenReturn(List.of(savedVersion()));
+        when(packageCurriculumRepository.findByPackageVersionIdOrderByOrderIndexAsc(versionId))
+                .thenReturn(savedCurriculums());
+
+        MentorDto.ServicePackageResponse response = mentorService.togglePackage(mentorId, packageId);
+
+        assertTrue(response.getIsActive());
+    }
+
+    @Test
+    void togglePackage_whenRequesterIsNotOwner_shouldThrowPackageNotFound() {
+        ServicePackage servicePackage = new ServicePackage();
+        servicePackage.setId(packageId);
+        servicePackage.setMentorId(UUID.randomUUID());
+
+        when(servicePackageRepository.findById(packageId)).thenReturn(Optional.of(servicePackage));
+
+        AppException exception = assertThrows(AppException.class,
+                () -> mentorService.togglePackage(mentorId, packageId));
+
+        assertSame(ServiceErrorCode.PACKAGE_NOT_FOUND, exception.getExceptionCode());
+        verify(servicePackageRepository, never()).save(any(ServicePackage.class));
+    }
+
+    @Test
+    void updateCurriculumItem_whenOwnedCurriculumExists_shouldUpdateCurriculum() {
+        ServicePackage servicePackage = new ServicePackage();
+        servicePackage.setId(packageId);
+        servicePackage.setMentorId(mentorId);
+
+        ServicePackageVersion version = savedVersion();
+        UUID curriculumId = UUID.randomUUID();
+        PackageCurriculum curriculum = new PackageCurriculum();
+        curriculum.setId(curriculumId);
+        curriculum.setPackageVersionId(versionId);
+        curriculum.setTitle("Session 1");
+        curriculum.setDescription("Intro");
+        curriculum.setOrderIndex(1);
+        curriculum.setDuration(60);
+
+        MentorDto.CurriculumItemRequest request = new MentorDto.CurriculumItemRequest();
+        request.setTitle("Updated Session 1");
+        request.setDescription("Updated intro");
+        request.setOrderIndex(2);
+        request.setDuration(75);
+
+        when(servicePackageRepository.findById(packageId)).thenReturn(Optional.of(servicePackage));
+        when(servicePackageVersionRepository.findById(versionId)).thenReturn(Optional.of(version));
+        when(packageCurriculumRepository.findById(curriculumId)).thenReturn(Optional.of(curriculum));
+        when(packageCurriculumRepository.existsByPackageVersionIdAndOrderIndexAndIdNot(versionId, 2, curriculumId)).thenReturn(false);
+        when(packageCurriculumRepository.save(any(PackageCurriculum.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        MentorDto.CurriculumItemResponse response =
+                mentorService.updateCurriculumItem(mentorId, packageId, versionId, curriculumId, request);
+
+        assertEquals("Updated Session 1", response.getTitle());
+        assertEquals(2, response.getOrderIndex());
+        ArgumentCaptor<PackageCurriculum> curriculumCaptor = ArgumentCaptor.forClass(PackageCurriculum.class);
+        verify(packageCurriculumRepository).save(curriculumCaptor.capture());
+        assertEquals("Updated Session 1", curriculumCaptor.getValue().getTitle());
+        assertEquals(75, curriculumCaptor.getValue().getDuration());
+    }
+
+    @Test
+    void updateCurriculumItem_whenOrderIndexDuplicated_shouldThrowBusinessException() {
+        ServicePackage servicePackage = new ServicePackage();
+        servicePackage.setId(packageId);
+        servicePackage.setMentorId(mentorId);
+
+        ServicePackageVersion version = savedVersion();
+        UUID curriculumId = UUID.randomUUID();
+        PackageCurriculum curriculum = new PackageCurriculum();
+        curriculum.setId(curriculumId);
+        curriculum.setPackageVersionId(versionId);
+
+        MentorDto.CurriculumItemRequest request = new MentorDto.CurriculumItemRequest();
+        request.setTitle("Updated Session 1");
+        request.setDescription("Updated intro");
+        request.setOrderIndex(2);
+        request.setDuration(75);
+
+        when(servicePackageRepository.findById(packageId)).thenReturn(Optional.of(servicePackage));
+        when(servicePackageVersionRepository.findById(versionId)).thenReturn(Optional.of(version));
+        when(packageCurriculumRepository.findById(curriculumId)).thenReturn(Optional.of(curriculum));
+        when(packageCurriculumRepository.existsByPackageVersionIdAndOrderIndexAndIdNot(versionId, 2, curriculumId)).thenReturn(true);
+
+        AppException exception = assertThrows(AppException.class,
+                () -> mentorService.updateCurriculumItem(mentorId, packageId, versionId, curriculumId, request));
+
+        assertSame(ServiceErrorCode.DUPLICATE_CURRICULUM_ORDER_INDEX, exception.getExceptionCode());
+        verify(packageCurriculumRepository, never()).save(any(PackageCurriculum.class));
+    }
+
+    @Test
+    void updateCurriculumItem_whenCurriculumDoesNotBelongToVersion_shouldThrowCurriculumNotFound() {
+        ServicePackage servicePackage = new ServicePackage();
+        servicePackage.setId(packageId);
+        servicePackage.setMentorId(mentorId);
+
+        ServicePackageVersion version = savedVersion();
+        UUID curriculumId = UUID.randomUUID();
+        PackageCurriculum curriculum = new PackageCurriculum();
+        curriculum.setId(curriculumId);
+        curriculum.setPackageVersionId(UUID.randomUUID());
+
+        MentorDto.CurriculumItemRequest request = new MentorDto.CurriculumItemRequest();
+        request.setTitle("Updated Session 1");
+        request.setDescription("Updated intro");
+        request.setOrderIndex(2);
+        request.setDuration(75);
+
+        when(servicePackageRepository.findById(packageId)).thenReturn(Optional.of(servicePackage));
+        when(servicePackageVersionRepository.findById(versionId)).thenReturn(Optional.of(version));
+        when(packageCurriculumRepository.findById(curriculumId)).thenReturn(Optional.of(curriculum));
+
+        AppException exception = assertThrows(AppException.class,
+                () -> mentorService.updateCurriculumItem(mentorId, packageId, versionId, curriculumId, request));
+
+        assertSame(ServiceErrorCode.CURRICULUM_NOT_FOUND, exception.getExceptionCode());
+        verify(packageCurriculumRepository, never()).save(any(PackageCurriculum.class));
+    }
+
+    @Test
     void addCurriculumItem_whenOrderIndexDuplicatedInVersion_shouldThrowBusinessException() {
         ServicePackage servicePackage = new ServicePackage();
         servicePackage.setId(packageId);
@@ -353,6 +718,26 @@ class MentorServiceImplTest {
         PackageCurriculum second = new PackageCurriculum();
         second.setId(UUID.randomUUID());
         second.setPackageVersionId(versionId);
+        second.setTitle("Session 2");
+        second.setDescription("Deep dive");
+        second.setOrderIndex(2);
+        second.setDuration(90);
+
+        return List.of(first, second);
+    }
+
+    private List<PackageCurriculum> savedClonedCurriculums(UUID clonedVersionId) {
+        PackageCurriculum first = new PackageCurriculum();
+        first.setId(UUID.randomUUID());
+        first.setPackageVersionId(clonedVersionId);
+        first.setTitle("Session 1");
+        first.setDescription("Intro");
+        first.setOrderIndex(1);
+        first.setDuration(60);
+
+        PackageCurriculum second = new PackageCurriculum();
+        second.setId(UUID.randomUUID());
+        second.setPackageVersionId(clonedVersionId);
         second.setTitle("Session 2");
         second.setDescription("Deep dive");
         second.setOrderIndex(2);

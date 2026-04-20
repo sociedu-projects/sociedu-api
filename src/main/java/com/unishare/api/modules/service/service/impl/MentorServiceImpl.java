@@ -5,6 +5,8 @@ import com.unishare.api.common.constants.MentorVerificationStatuses;
 import com.unishare.api.modules.service.exception.ServiceErrorCode;
 import com.unishare.api.modules.service.dto.MentorDto.*;
 import com.unishare.api.modules.service.dto.request.CreateServicePackageRequest;
+import com.unishare.api.modules.service.dto.request.CreateServicePackageVersionRequest;
+import com.unishare.api.modules.service.dto.request.UpdateServicePackageRequest;
 import com.unishare.api.modules.service.entity.MentorProfile;
 import com.unishare.api.modules.service.entity.PackageCurriculum;
 import com.unishare.api.modules.service.entity.ServicePackage;
@@ -28,6 +30,7 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class MentorServiceImpl implements MentorService {
 
     private final MentorProfileRepository mentorProfileRepository;
@@ -77,6 +80,19 @@ public class MentorServiceImpl implements MentorService {
     }
 
     @Override
+    public Page<ServicePackageResponse> getActivePackages(Pageable pageable) {
+        return servicePackageRepository.findByIsActiveTrue(pageable)
+                .map(this::mapToCatalogPackageResponse);
+    }
+
+    @Override
+    public ServicePackageResponse getActivePackage(UUID packageId) {
+        ServicePackage servicePackage = servicePackageRepository.findByIdAndIsActiveTrue(packageId)
+                .orElseThrow(() -> new AppException(ServiceErrorCode.PACKAGE_NOT_FOUND, "Package not found"));
+        return mapToCatalogPackageResponse(servicePackage);
+    }
+
+    @Override
     @Transactional
     public ServicePackageResponse createPackage(UUID mentorId, CreateServicePackageRequest request) {
         validateCreatePackageRequest(request);
@@ -101,6 +117,64 @@ public class MentorServiceImpl implements MentorService {
                 .toList();
         packageCurriculumRepository.saveAll(curriculums);
 
+        return mapToPackageResponse(saved);
+    }
+
+    @Override
+    @Transactional
+    public ServicePackageResponse createPackageVersion(UUID mentorId, UUID packageId, CreateServicePackageVersionRequest request) {
+        ServicePackage pkg = servicePackageRepository.findById(packageId)
+                .filter(p -> p.getMentorId().equals(mentorId))
+                .orElseThrow(() -> new AppException(ServiceErrorCode.PACKAGE_NOT_FOUND, "Package not found"));
+
+        List<ServicePackageVersion> existingVersions = servicePackageVersionRepository.findByPackageId(packageId);
+        ServicePackageVersion currentDefaultVersion = existingVersions.stream()
+                .filter(version -> Boolean.TRUE.equals(version.getIsDefault()))
+                .findFirst()
+                .orElseThrow(() -> new AppException(ServiceErrorCode.SERVICE_VERSION_NOT_FOUND, "Default version not found"));
+
+        existingVersions.forEach(version -> version.setIsDefault(false));
+        servicePackageVersionRepository.saveAll(existingVersions);
+
+        ServicePackageVersion newVersion = new ServicePackageVersion();
+        newVersion.setPackageId(pkg.getId());
+        newVersion.setPrice(request.getPrice());
+        newVersion.setDuration(request.getDuration());
+        newVersion.setDeliveryType(request.getDeliveryType());
+        newVersion.setIsDefault(true);
+        ServicePackageVersion savedVersion = servicePackageVersionRepository.save(newVersion);
+
+        List<PackageCurriculum> clonedCurriculums = packageCurriculumRepository
+                .findByPackageVersionIdOrderByOrderIndexAsc(currentDefaultVersion.getId()).stream()
+                .map(curriculum -> cloneCurriculum(savedVersion.getId(), curriculum))
+                .toList();
+        packageCurriculumRepository.saveAll(clonedCurriculums);
+
+        return mapToPackageResponse(pkg);
+    }
+
+    @Override
+    @Transactional
+    public ServicePackageResponse updatePackage(UUID mentorId, UUID packageId, UpdateServicePackageRequest request) {
+        ServicePackage pkg = servicePackageRepository.findById(packageId)
+                .filter(p -> p.getMentorId().equals(mentorId))
+                .orElseThrow(() -> new AppException(ServiceErrorCode.PACKAGE_NOT_FOUND, "Package not found"));
+
+        pkg.setName(request.getName());
+        pkg.setDescription(request.getDescription());
+        ServicePackage saved = servicePackageRepository.save(pkg);
+        return mapToPackageResponse(saved);
+    }
+
+    @Override
+    @Transactional
+    public ServicePackageResponse togglePackage(UUID mentorId, UUID packageId) {
+        ServicePackage pkg = servicePackageRepository.findById(packageId)
+                .filter(p -> p.getMentorId().equals(mentorId))
+                .orElseThrow(() -> new AppException(ServiceErrorCode.PACKAGE_NOT_FOUND, "Package not found"));
+
+        pkg.setIsActive(!Boolean.TRUE.equals(pkg.getIsActive()));
+        ServicePackage saved = servicePackageRepository.save(pkg);
         return mapToPackageResponse(saved);
     }
 
@@ -201,6 +275,28 @@ public class MentorServiceImpl implements MentorService {
     }
 
     @Override
+    @Transactional
+    public CurriculumItemResponse updateCurriculumItem(UUID mentorId, UUID packageId, UUID versionId, UUID curriculumId, CurriculumItemRequest request) {
+        ServicePackageVersion ver = requireOwnedVersion(mentorId, packageId, versionId);
+        PackageCurriculum curriculum = packageCurriculumRepository.findById(curriculumId)
+                .filter(item -> item.getPackageVersionId().equals(ver.getId()))
+                .orElseThrow(() -> new AppException(ServiceErrorCode.CURRICULUM_NOT_FOUND, "Curriculum not found"));
+
+        if (packageCurriculumRepository.existsByPackageVersionIdAndOrderIndexAndIdNot(
+                ver.getId(), request.getOrderIndex(), curriculumId)) {
+            throw new AppException(ServiceErrorCode.DUPLICATE_CURRICULUM_ORDER_INDEX,
+                    "Thá»© tá»± curriculum khÃ´ng Ä‘Æ°á»£c trÃ¹ng nhau trong cÃ¹ng má»™t phiÃªn báº£n gÃ³i");
+        }
+
+        curriculum.setTitle(request.getTitle());
+        curriculum.setDescription(request.getDescription());
+        curriculum.setOrderIndex(request.getOrderIndex());
+        curriculum.setDuration(request.getDuration());
+        PackageCurriculum saved = packageCurriculumRepository.save(curriculum);
+        return mapCurriculum(saved);
+    }
+
+    @Override
     @Transactional(readOnly = true)
     public Page<CurriculumItemResponse> listCurriculum(UUID mentorId, UUID packageId, UUID versionId, Pageable pageable) {
         ServicePackageVersion ver = requireOwnedVersion(mentorId, packageId, versionId);
@@ -252,6 +348,16 @@ public class MentorServiceImpl implements MentorService {
         curriculum.setDescription(request.getDescription());
         curriculum.setOrderIndex(request.getOrderIndex());
         curriculum.setDuration(request.getDuration());
+        return curriculum;
+    }
+
+    private PackageCurriculum cloneCurriculum(UUID versionId, PackageCurriculum source) {
+        PackageCurriculum curriculum = new PackageCurriculum();
+        curriculum.setPackageVersionId(versionId);
+        curriculum.setTitle(source.getTitle());
+        curriculum.setDescription(source.getDescription());
+        curriculum.setOrderIndex(source.getOrderIndex());
+        curriculum.setDuration(source.getDuration());
         return curriculum;
     }
 
