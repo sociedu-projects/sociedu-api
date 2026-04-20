@@ -1,12 +1,12 @@
 package com.unishare.api.modules.service.service.impl;
 
-import com.unishare.api.common.constants.Roles;
 import com.unishare.api.common.dto.AppException;
 import com.unishare.api.common.constants.MentorVerificationStatuses;
-import com.unishare.api.modules.auth.entity.User;
-import com.unishare.api.modules.auth.repository.UserRepository;
 import com.unishare.api.modules.service.exception.ServiceErrorCode;
 import com.unishare.api.modules.service.dto.MentorDto.*;
+import com.unishare.api.modules.service.dto.request.CreateServicePackageRequest;
+import com.unishare.api.modules.service.dto.request.CreateServicePackageVersionRequest;
+import com.unishare.api.modules.service.dto.request.UpdateServicePackageRequest;
 import com.unishare.api.modules.service.entity.MentorProfile;
 import com.unishare.api.modules.service.entity.PackageCurriculum;
 import com.unishare.api.modules.service.entity.ServicePackage;
@@ -16,75 +16,34 @@ import com.unishare.api.modules.service.repository.PackageCurriculumRepository;
 import com.unishare.api.modules.service.repository.ServicePackageRepository;
 import com.unishare.api.modules.service.repository.ServicePackageVersionRepository;
 import com.unishare.api.modules.service.service.MentorService;
-import com.unishare.api.modules.user.entity.UserProfile;
-import com.unishare.api.modules.user.repository.UserProfileRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
-import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class MentorServiceImpl implements MentorService {
 
     private final MentorProfileRepository mentorProfileRepository;
     private final ServicePackageRepository servicePackageRepository;
     private final ServicePackageVersionRepository servicePackageVersionRepository;
     private final PackageCurriculumRepository packageCurriculumRepository;
-    private final UserRepository userRepository;
-    private final UserProfileRepository userProfileRepository;
 
     @Override
     @Transactional(readOnly = true)
     public MentorProfileResponse getMentorProfile(UUID mentorId) {
-        return mentorProfileRepository.findById(mentorId)
-                .map(mp -> toFullMentorResponse(mp))
-                .orElseGet(() -> buildResponseForMentorWithoutServiceProfile(mentorId));
-    }
-
-    /** Có đủ {@link MentorProfile} + gói — dùng cho chi tiết. */
-    private MentorProfileResponse toFullMentorResponse(MentorProfile profile) {
-        UUID mentorId = profile.getUserId();
-        List<ServicePackage> packages = servicePackageRepository.findByMentorId(mentorId);
-        UserProfile up = userProfileRepository.findById(mentorId).orElse(null);
-
-        return MentorProfileResponse.builder()
-                .userId(profile.getUserId())
-                .displayName(up != null ? up.getDisplayName() : null)
-                .headline(profile.getHeadline())
-                .expertise(profile.getExpertise())
-                .basePrice(profile.getBasePrice())
-                .ratingAvg(profile.getRatingAvg())
-                .sessionsCompleted(profile.getSessionsCompleted())
-                .verificationStatus(profile.getVerificationStatus())
-                .packages(packages.stream().map(this::mapToPackageResponse).collect(Collectors.toList()))
-                .build();
-    }
-
-    /**
-     * User có role MENTOR nhưng chưa tạo {@code mentor_profiles} — vẫn trả JSON để client hiển thị stub.
-     */
-    private MentorProfileResponse buildResponseForMentorWithoutServiceProfile(UUID mentorId) {
-        User user = userRepository.findByIdWithRoles(mentorId)
+        MentorProfile profile = mentorProfileRepository.findById(mentorId)
                 .orElseThrow(() -> new AppException(ServiceErrorCode.MENTOR_NOT_FOUND, "Mentor not found"));
-        if (!userHasMentorRole(user)) {
-            throw new AppException(ServiceErrorCode.MENTOR_NOT_FOUND, "Mentor not found");
-        }
-        UserProfile up = userProfileRepository.findById(mentorId).orElse(null);
-        return toDirectoryItem(user, null, up);
-    }
-
-    private static boolean userHasMentorRole(User user) {
-        return user.getUserRoles().stream()
-                .anyMatch(ur -> ur.getRole() != null && Roles.MENTOR.equals(ur.getRole().getName()));
+        return mapToMentorProfileOnlyResponse(profile);
     }
 
     @Override
@@ -108,164 +67,43 @@ public class MentorServiceImpl implements MentorService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<MentorProfileResponse> searchMentors(
-            String q,
-            Boolean verifiedOnly,
-            BigDecimal maxPrice,
-            List<String> expertise,
-            String sort) {
-
-        List<User> withRole = userRepository.findAllWithRoleName(Roles.MENTOR);
-        if (withRole.isEmpty()) {
-            return List.of();
-        }
-
-        List<UUID> ids = withRole.stream().map(User::getId).toList();
-        Map<UUID, MentorProfile> mpMap = mentorProfileRepository.findAllById(ids).stream()
-                .collect(Collectors.toMap(MentorProfile::getUserId, Function.identity()));
-        Map<UUID, UserProfile> upMap = userProfileRepository.findAllById(ids).stream()
-                .collect(Collectors.toMap(UserProfile::getUserId, Function.identity()));
-
-        boolean onlyVerified = Boolean.TRUE.equals(verifiedOnly);
-
-        List<MentorProfileResponse> out = new ArrayList<>();
-        for (User u : withRole) {
-            MentorProfile mp = mpMap.get(u.getId());
-            UserProfile up = upMap.get(u.getId());
-            if (!matchesVerified(mp, onlyVerified)) {
-                continue;
-            }
-            if (!matchesQ(mp, up, q)) {
-                continue;
-            }
-            if (!matchesMaxPrice(mp, maxPrice)) {
-                continue;
-            }
-            if (!matchesExpertiseAny(mp, expertise)) {
-                continue;
-            }
-            out.add(toDirectoryItem(u, mp, up));
-        }
-
-        out.sort(responseComparator(sort));
-        return out;
-    }
-
-    private static boolean matchesVerified(MentorProfile mp, boolean onlyVerified) {
-        if (!onlyVerified) {
-            return true;
-        }
-        return mp != null && MentorVerificationStatuses.VERIFIED.equalsIgnoreCase(mp.getVerificationStatus());
-    }
-
-    private static boolean matchesQ(MentorProfile mp, UserProfile up, String q) {
-        if (q == null || q.isBlank()) {
-            return true;
-        }
-        String needle = q.trim().toLowerCase();
-        if (up != null) {
-            if (up.getDisplayName().toLowerCase().contains(needle)) {
-                return true;
-            }
-            if (up.getHeadline() != null && up.getHeadline().toLowerCase().contains(needle)) {
-                return true;
-            }
-            if (up.getBio() != null && up.getBio().toLowerCase().contains(needle)) {
-                return true;
-            }
-        }
-        if (mp != null) {
-            if (mp.getHeadline() != null && mp.getHeadline().toLowerCase().contains(needle)) {
-                return true;
-            }
-            if (mp.getExpertise() != null && mp.getExpertise().toLowerCase().contains(needle)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private static boolean matchesMaxPrice(MentorProfile mp, BigDecimal maxPrice) {
-        if (maxPrice == null) {
-            return true;
-        }
-        if (mp == null || mp.getBasePrice() == null) {
-            return true;
-        }
-        return mp.getBasePrice().compareTo(maxPrice) <= 0;
-    }
-
-    private static boolean matchesExpertiseAny(MentorProfile mp, List<String> tags) {
-        if (tags == null || tags.isEmpty()) {
-            return true;
-        }
-        String bucket = (mp != null && mp.getExpertise() != null) ? mp.getExpertise().toLowerCase() : "";
-        for (String tag : tags) {
-            if (tag != null && !tag.isBlank() && bucket.contains(tag.trim().toLowerCase())) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private static Comparator<MentorProfileResponse> responseComparator(String sort) {
-        String s = sort == null || sort.isBlank() ? "popular" : sort.trim().toLowerCase();
-        return switch (s) {
-            case "rating" -> Comparator
-                    .comparing((MentorProfileResponse r) -> r.getRatingAvg() != null ? r.getRatingAvg() : 0f)
-                    .reversed();
-            case "price-asc" -> Comparator.comparing(
-                    MentorProfileResponse::getBasePrice,
-                    Comparator.nullsLast(Comparator.naturalOrder()));
-            case "price-desc" -> Comparator.comparing(
-                    MentorProfileResponse::getBasePrice,
-                    Comparator.nullsLast(Comparator.reverseOrder()));
-            default -> Comparator
-                    .comparing((MentorProfileResponse r) -> r.getSessionsCompleted() != null ? r.getSessionsCompleted() : 0)
-                    .reversed();
-        };
-    }
-
-    /** Danh sách: không nạp gói; ghép tên từ {@code user_profiles} + mentor service profile. */
-    private MentorProfileResponse toDirectoryItem(User u, MentorProfile mp, UserProfile up) {
-        String displayName = up != null ? up.getDisplayName() : "Người dùng";
-        String headline;
-        if (mp != null && notBlank(mp.getHeadline())) {
-            headline = mp.getHeadline();
-        } else if (up != null && notBlank(up.getHeadline())) {
-            headline = up.getHeadline();
-        } else {
-            headline = "Chưa cập nhật hồ sơ mentor";
-        }
-
-        return MentorProfileResponse.builder()
-                .userId(u.getId())
-                .displayName(displayName)
-                .headline(headline)
-                .expertise(mp != null ? mp.getExpertise() : null)
-                .basePrice(mp != null ? mp.getBasePrice() : null)
-                .ratingAvg(mp != null ? mp.getRatingAvg() : 0f)
-                .sessionsCompleted(mp != null ? mp.getSessionsCompleted() : 0)
-                .verificationStatus(mp != null ? mp.getVerificationStatus() : MentorVerificationStatuses.PENDING)
-                .packages(List.of())
-                .build();
-    }
-
-    private static boolean notBlank(String s) {
-        return s != null && !s.isBlank();
+    public Page<MentorProfileResponse> getAllVerifiedMentors(Pageable pageable) {
+        return mentorProfileRepository.findByVerificationStatus(MentorVerificationStatuses.VERIFIED, pageable)
+                .map(this::mapToMentorProfileOnlyResponse);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<ServicePackageResponse> getMentorPackages(UUID mentorId) {
-        return servicePackageRepository.findByMentorId(mentorId).stream()
-                .map(this::mapToPackageResponse)
-                .collect(Collectors.toList());
+    public Page<ServicePackageResponse> getMentorPackages(UUID mentorId, Pageable pageable) {
+        return servicePackageRepository.findByMentorIdAndIsActiveTrue(mentorId, pageable)
+                .map(this::mapToCatalogPackageResponse);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<ServicePackageResponse> getMyPackages(UUID mentorId, Pageable pageable) {
+        return servicePackageRepository.findByMentorId(mentorId, pageable)
+                .map(this::mapToPackageResponse);
+    }
+
+    @Override
+    public Page<ServicePackageResponse> getActivePackages(Pageable pageable) {
+        return servicePackageRepository.findByIsActiveTrue(pageable)
+                .map(this::mapToCatalogPackageResponse);
+    }
+
+    @Override
+    public ServicePackageResponse getActivePackage(UUID packageId) {
+        ServicePackage servicePackage = servicePackageRepository.findByIdAndIsActiveTrue(packageId)
+                .orElseThrow(() -> new AppException(ServiceErrorCode.PACKAGE_NOT_FOUND, "Package not found"));
+        return mapToCatalogPackageResponse(servicePackage);
     }
 
     @Override
     @Transactional
-    public ServicePackageResponse createPackage(UUID mentorId, ServicePackageRequest request) {
+    public ServicePackageResponse createPackage(UUID mentorId, CreateServicePackageRequest request) {
+        validateCreatePackageRequest(request);
+
         ServicePackage pkg = new ServicePackage();
         pkg.setMentorId(mentorId);
         pkg.setName(request.getName());
@@ -276,12 +114,75 @@ public class MentorServiceImpl implements MentorService {
         ServicePackageVersion ver = new ServicePackageVersion();
         ver.setPackageId(saved.getId());
         ver.setPrice(request.getPrice());
-        ver.setDuration(request.getDuration() != null ? request.getDuration() : 60);
+        ver.setDuration(request.getDuration());
         ver.setDeliveryType(request.getDeliveryType());
         ver.setIsDefault(true);
-        servicePackageVersionRepository.save(ver);
+        ServicePackageVersion savedVersion = servicePackageVersionRepository.save(ver);
 
-        return mapToPackageResponse(servicePackageRepository.findById(saved.getId()).orElseThrow());
+        List<PackageCurriculum> curriculums = request.getCurriculums().stream()
+                .map(item -> mapCurriculumRequest(savedVersion.getId(), item))
+                .toList();
+        packageCurriculumRepository.saveAll(curriculums);
+
+        return mapToPackageResponse(saved);
+    }
+
+    @Override
+    @Transactional
+    public ServicePackageResponse createPackageVersion(UUID mentorId, UUID packageId, CreateServicePackageVersionRequest request) {
+        ServicePackage pkg = servicePackageRepository.findById(packageId)
+                .filter(p -> p.getMentorId().equals(mentorId))
+                .orElseThrow(() -> new AppException(ServiceErrorCode.PACKAGE_NOT_FOUND, "Package not found"));
+
+        List<ServicePackageVersion> existingVersions = servicePackageVersionRepository.findByPackageId(packageId);
+        ServicePackageVersion currentDefaultVersion = existingVersions.stream()
+                .filter(version -> Boolean.TRUE.equals(version.getIsDefault()))
+                .findFirst()
+                .orElseThrow(() -> new AppException(ServiceErrorCode.SERVICE_VERSION_NOT_FOUND, "Default version not found"));
+
+        existingVersions.forEach(version -> version.setIsDefault(false));
+        servicePackageVersionRepository.saveAll(existingVersions);
+
+        ServicePackageVersion newVersion = new ServicePackageVersion();
+        newVersion.setPackageId(pkg.getId());
+        newVersion.setPrice(request.getPrice());
+        newVersion.setDuration(request.getDuration());
+        newVersion.setDeliveryType(request.getDeliveryType());
+        newVersion.setIsDefault(true);
+        ServicePackageVersion savedVersion = servicePackageVersionRepository.save(newVersion);
+
+        List<PackageCurriculum> clonedCurriculums = packageCurriculumRepository
+                .findByPackageVersionIdOrderByOrderIndexAsc(currentDefaultVersion.getId()).stream()
+                .map(curriculum -> cloneCurriculum(savedVersion.getId(), curriculum))
+                .toList();
+        packageCurriculumRepository.saveAll(clonedCurriculums);
+
+        return mapToPackageResponse(pkg);
+    }
+
+    @Override
+    @Transactional
+    public ServicePackageResponse updatePackage(UUID mentorId, UUID packageId, UpdateServicePackageRequest request) {
+        ServicePackage pkg = servicePackageRepository.findById(packageId)
+                .filter(p -> p.getMentorId().equals(mentorId))
+                .orElseThrow(() -> new AppException(ServiceErrorCode.PACKAGE_NOT_FOUND, "Package not found"));
+
+        pkg.setName(request.getName());
+        pkg.setDescription(request.getDescription());
+        ServicePackage saved = servicePackageRepository.save(pkg);
+        return mapToPackageResponse(saved);
+    }
+
+    @Override
+    @Transactional
+    public ServicePackageResponse togglePackage(UUID mentorId, UUID packageId) {
+        ServicePackage pkg = servicePackageRepository.findById(packageId)
+                .filter(p -> p.getMentorId().equals(mentorId))
+                .orElseThrow(() -> new AppException(ServiceErrorCode.PACKAGE_NOT_FOUND, "Package not found"));
+
+        pkg.setIsActive(!Boolean.TRUE.equals(pkg.getIsActive()));
+        ServicePackage saved = servicePackageRepository.save(pkg);
+        return mapToPackageResponse(saved);
     }
 
     @Override
@@ -300,55 +201,114 @@ public class MentorServiceImpl implements MentorService {
 
     private ServicePackageResponse mapToPackageResponse(ServicePackage pkg) {
         List<ServicePackageVersion> versions = servicePackageVersionRepository.findByPackageId(pkg.getId());
+        Map<UUID, List<CurriculumItemResponse>> curriculumsByVersionId = versions.stream()
+                .collect(Collectors.toMap(
+                        ServicePackageVersion::getId,
+                        version -> packageCurriculumRepository.findByPackageVersionIdOrderByOrderIndexAsc(version.getId()).stream()
+                                .map(this::mapCurriculum)
+                                .toList()
+                ));
         return ServicePackageResponse.builder()
                 .id(pkg.getId())
                 .mentorId(pkg.getMentorId())
                 .name(pkg.getName())
                 .description(pkg.getDescription())
                 .isActive(pkg.getIsActive())
-                .versions(versions.stream().map(this::mapVersion).collect(Collectors.toList()))
+                .versions(versions.stream()
+                        .map(version -> mapVersion(version, curriculumsByVersionId.getOrDefault(version.getId(), List.of())))
+                        .collect(Collectors.toList()))
                 .build();
     }
 
-    private ServicePackageVersionResponse mapVersion(ServicePackageVersion v) {
+    private MentorProfileResponse mapToMentorProfileOnlyResponse(MentorProfile profile) {
+        return MentorProfileResponse.builder()
+                .userId(profile.getUserId())
+                .headline(profile.getHeadline())
+                .expertise(profile.getExpertise())
+                .basePrice(profile.getBasePrice())
+                .ratingAvg(profile.getRatingAvg())
+                .sessionsCompleted(profile.getSessionsCompleted())
+                .verificationStatus(profile.getVerificationStatus())
+                .build();
+    }
+
+    private ServicePackageResponse mapToCatalogPackageResponse(ServicePackage pkg) {
+        List<ServicePackageVersionResponse> versions = servicePackageVersionRepository.findByPackageId(pkg.getId()).stream()
+                .filter(version -> Boolean.TRUE.equals(version.getIsDefault()))
+                .map(version -> mapVersion(
+                        version,
+                        packageCurriculumRepository.findByPackageVersionIdOrderByOrderIndexAsc(version.getId()).stream()
+                                .map(this::mapCurriculum)
+                                .toList()))
+                .toList();
+
+        return ServicePackageResponse.builder()
+                .id(pkg.getId())
+                .mentorId(pkg.getMentorId())
+                .name(pkg.getName())
+                .description(pkg.getDescription())
+                .isActive(pkg.getIsActive())
+                .versions(versions)
+                .build();
+    }
+
+    private ServicePackageVersionResponse mapVersion(ServicePackageVersion v, List<CurriculumItemResponse> curriculums) {
         return ServicePackageVersionResponse.builder()
                 .id(v.getId())
                 .price(v.getPrice())
                 .duration(v.getDuration())
                 .deliveryType(v.getDeliveryType())
                 .isDefault(v.getIsDefault())
+                .curriculums(curriculums)
                 .build();
     }
 
     @Override
     @Transactional
     public CurriculumItemResponse addCurriculumItem(UUID mentorId, UUID packageId, UUID versionId, CurriculumItemRequest request) {
-        ServicePackage pkg = servicePackageRepository.findById(packageId)
-                .filter(p -> p.getMentorId().equals(mentorId))
-                .orElseThrow(() -> new AppException(ServiceErrorCode.PACKAGE_NOT_FOUND, "Package not found"));
-        ServicePackageVersion ver = servicePackageVersionRepository.findById(versionId)
-                .filter(v -> v.getPackageId().equals(pkg.getId()))
-                .orElseThrow(() -> new AppException(ServiceErrorCode.SERVICE_VERSION_NOT_FOUND, "Version not found"));
+        ServicePackageVersion ver = requireOwnedVersion(mentorId, packageId, versionId);
+        if (packageCurriculumRepository.existsByPackageVersionIdAndOrderIndex(ver.getId(), request.getOrderIndex())) {
+            throw new AppException(ServiceErrorCode.DUPLICATE_CURRICULUM_ORDER_INDEX,
+                    "Thứ tự curriculum không được trùng nhau trong cùng một phiên bản gói");
+        }
         PackageCurriculum c = new PackageCurriculum();
         c.setPackageVersionId(ver.getId());
         c.setTitle(request.getTitle());
         c.setDescription(request.getDescription());
-        c.setOrderIndex(request.getOrderIndex() != null ? request.getOrderIndex() : 0);
+        c.setOrderIndex(request.getOrderIndex());
         c.setDuration(request.getDuration());
         c = packageCurriculumRepository.save(c);
         return mapCurriculum(c);
     }
 
     @Override
+    @Transactional
+    public CurriculumItemResponse updateCurriculumItem(UUID mentorId, UUID packageId, UUID versionId, UUID curriculumId, CurriculumItemRequest request) {
+        ServicePackageVersion ver = requireOwnedVersion(mentorId, packageId, versionId);
+        PackageCurriculum curriculum = packageCurriculumRepository.findById(curriculumId)
+                .filter(item -> item.getPackageVersionId().equals(ver.getId()))
+                .orElseThrow(() -> new AppException(ServiceErrorCode.CURRICULUM_NOT_FOUND, "Curriculum not found"));
+
+        if (packageCurriculumRepository.existsByPackageVersionIdAndOrderIndexAndIdNot(
+                ver.getId(), request.getOrderIndex(), curriculumId)) {
+            throw new AppException(ServiceErrorCode.DUPLICATE_CURRICULUM_ORDER_INDEX,
+                    "Thá»© tá»± curriculum khÃ´ng Ä‘Æ°á»£c trÃ¹ng nhau trong cÃ¹ng má»™t phiÃªn báº£n gÃ³i");
+        }
+
+        curriculum.setTitle(request.getTitle());
+        curriculum.setDescription(request.getDescription());
+        curriculum.setOrderIndex(request.getOrderIndex());
+        curriculum.setDuration(request.getDuration());
+        PackageCurriculum saved = packageCurriculumRepository.save(curriculum);
+        return mapCurriculum(saved);
+    }
+
+    @Override
     @Transactional(readOnly = true)
-    public List<CurriculumItemResponse> listCurriculum(UUID mentorId, UUID packageId, UUID versionId) {
-        assertPackageOwner(mentorId, packageId);
-        ServicePackageVersion ver = servicePackageVersionRepository.findById(versionId)
-                .filter(v -> v.getPackageId().equals(packageId))
-                .orElseThrow(() -> new AppException(ServiceErrorCode.SERVICE_VERSION_NOT_FOUND, "Version not found"));
-        return packageCurriculumRepository.findByPackageVersionIdOrderByOrderIndexAsc(ver.getId()).stream()
-                .map(this::mapCurriculum)
-                .collect(Collectors.toList());
+    public Page<CurriculumItemResponse> listCurriculum(UUID mentorId, UUID packageId, UUID versionId, Pageable pageable) {
+        ServicePackageVersion ver = requireOwnedVersion(mentorId, packageId, versionId);
+        return packageCurriculumRepository.findByPackageVersionIdOrderByOrderIndexAsc(ver.getId(), pageable)
+                .map(this::mapCurriculum);
     }
 
     @Override
@@ -368,6 +328,15 @@ public class MentorServiceImpl implements MentorService {
                 .orElseThrow(() -> new AppException(ServiceErrorCode.PACKAGE_NOT_FOUND, "Package not found"));
     }
 
+    private ServicePackageVersion requireOwnedVersion(UUID mentorId, UUID packageId, UUID versionId) {
+        ServicePackage pkg = servicePackageRepository.findById(packageId)
+                .filter(p -> p.getMentorId().equals(mentorId))
+                .orElseThrow(() -> new AppException(ServiceErrorCode.PACKAGE_NOT_FOUND, "Package not found"));
+        return servicePackageVersionRepository.findById(versionId)
+                .filter(v -> v.getPackageId().equals(pkg.getId()))
+                .orElseThrow(() -> new AppException(ServiceErrorCode.SERVICE_VERSION_NOT_FOUND, "Version not found"));
+    }
+
     private CurriculumItemResponse mapCurriculum(PackageCurriculum c) {
         return CurriculumItemResponse.builder()
                 .id(c.getId())
@@ -377,5 +346,40 @@ public class MentorServiceImpl implements MentorService {
                 .orderIndex(c.getOrderIndex())
                 .duration(c.getDuration())
                 .build();
+    }
+
+    private PackageCurriculum mapCurriculumRequest(UUID versionId, CreateServicePackageRequest.CurriculumRequest request) {
+        PackageCurriculum curriculum = new PackageCurriculum();
+        curriculum.setPackageVersionId(versionId);
+        curriculum.setTitle(request.getTitle());
+        curriculum.setDescription(request.getDescription());
+        curriculum.setOrderIndex(request.getOrderIndex());
+        curriculum.setDuration(request.getDuration());
+        return curriculum;
+    }
+
+    private PackageCurriculum cloneCurriculum(UUID versionId, PackageCurriculum source) {
+        PackageCurriculum curriculum = new PackageCurriculum();
+        curriculum.setPackageVersionId(versionId);
+        curriculum.setTitle(source.getTitle());
+        curriculum.setDescription(source.getDescription());
+        curriculum.setOrderIndex(source.getOrderIndex());
+        curriculum.setDuration(source.getDuration());
+        return curriculum;
+    }
+
+    private void validateCreatePackageRequest(CreateServicePackageRequest request) {
+        if (request.getCurriculums() == null || request.getCurriculums().isEmpty()) {
+            throw new AppException(ServiceErrorCode.PACKAGE_CURRICULUM_REQUIRED,
+                    "Gói dịch vụ phải có ít nhất một curriculum");
+        }
+
+        Set<Integer> orderIndexes = request.getCurriculums().stream()
+                .map(CreateServicePackageRequest.CurriculumRequest::getOrderIndex)
+                .collect(Collectors.toSet());
+        if (orderIndexes.size() != request.getCurriculums().size()) {
+            throw new AppException(ServiceErrorCode.DUPLICATE_CURRICULUM_ORDER_INDEX,
+                    "Thứ tự curriculum không được trùng nhau trong cùng một gói");
+        }
     }
 }
