@@ -80,6 +80,17 @@ public class MentorController {
                 .withData(mentorService.getMyPackages(principal.getUserId(), pageable)));
     }
 
+    @Operation(summary = "Chi tiet goi dich vu cua toi")
+    @SecurityRequirement(name = OpenApiConfig.BEARER_JWT)
+    @PreAuthorize("hasRole('MENTOR')")
+    @GetMapping("/me/packages/{pkgId}")
+    public ResponseEntity<ApiResponse<ServicePackageResponse>> getMyPackage(
+            @AuthenticationPrincipal CustomUserPrincipal principal,
+            @PathVariable UUID pkgId) {
+        return ResponseEntity.ok(ApiResponse.<ServicePackageResponse>build()
+                .withData(mentorService.getMyPackage(principal.getUserId(), pkgId)));
+    }
+
     @Operation(summary = "Cap nhat ho so mentor (me)")
     @SecurityRequirement(name = OpenApiConfig.BEARER_JWT)
     @PreAuthorize("hasRole('MENTOR')")

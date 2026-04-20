@@ -61,4 +61,34 @@ class MyMentorPackagesPageableTest {
         assertEquals("Career Planning", result.getBody().getData().getContent().get(0).getName());
         assertEquals(false, result.getBody().getData().getContent().get(0).getIsActive());
     }
+
+    @Test
+    void getMyPackage_whenPackageExists_shouldReturnPackageDetail() {
+        UUID mentorId = UUID.randomUUID();
+        UUID packageId = UUID.randomUUID();
+        CustomUserPrincipal principal = new CustomUserPrincipal(
+                mentorId,
+                "mentor@example.com",
+                "hashed",
+                List.of("MENTOR"),
+                List.of(),
+                true
+        );
+
+        MentorDto.ServicePackageResponse response = MentorDto.ServicePackageResponse.builder()
+                .id(packageId)
+                .mentorId(mentorId)
+                .name("Career Planning")
+                .isActive(false)
+                .build();
+
+        when(mentorService.getMyPackage(eq(mentorId), eq(packageId))).thenReturn(response);
+
+        ResponseEntity<ApiResponse<MentorDto.ServicePackageResponse>> result =
+                mentorController.getMyPackage(principal, packageId);
+
+        assertEquals(200, result.getStatusCode().value());
+        assertEquals(packageId, result.getBody().getData().getId());
+        assertEquals("Career Planning", result.getBody().getData().getName());
+    }
 }

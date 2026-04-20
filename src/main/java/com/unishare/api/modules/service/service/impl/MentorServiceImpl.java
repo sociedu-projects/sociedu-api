@@ -87,6 +87,12 @@ public class MentorServiceImpl implements MentorService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public ServicePackageResponse getMyPackage(UUID mentorId, UUID packageId) {
+        return mapToPackageResponse(requireOwnedPackage(mentorId, packageId));
+    }
+
+    @Override
     public Page<ServicePackageResponse> getActivePackages(Pageable pageable) {
         return servicePackageRepository.findByIsActiveTrue(pageable)
                 .map(this::mapToCatalogPackageResponse);
@@ -125,6 +131,21 @@ public class MentorServiceImpl implements MentorService {
         packageCurriculumRepository.saveAll(curriculums);
 
         return mapToPackageResponse(saved);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<ServicePackageVersionResponse> getPackageVersions(UUID mentorId, UUID packageId, Pageable pageable) {
+        ServicePackage pkg = requireOwnedPackage(mentorId, packageId);
+        return servicePackageVersionRepository.findByPackageId(pkg.getId(), pageable)
+                .map(this::mapToVersionResponse);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public ServicePackageVersionResponse getPackageVersion(UUID mentorId, UUID packageId, UUID versionId) {
+        ServicePackageVersion version = requireOwnedVersion(mentorId, packageId, versionId);
+        return mapToVersionResponse(version);
     }
 
     @Override
@@ -263,6 +284,15 @@ public class MentorServiceImpl implements MentorService {
                 .build();
     }
 
+    private ServicePackageVersionResponse mapToVersionResponse(ServicePackageVersion version) {
+        return mapVersion(
+                version,
+                packageCurriculumRepository.findByPackageVersionIdOrderByOrderIndexAsc(version.getId()).stream()
+                        .map(this::mapCurriculum)
+                        .toList()
+        );
+    }
+
     @Override
     @Transactional
     public CurriculumItemResponse addCurriculumItem(UUID mentorId, UUID packageId, UUID versionId, CurriculumItemRequest request) {
@@ -322,16 +352,28 @@ public class MentorServiceImpl implements MentorService {
         packageCurriculumRepository.delete(c);
     }
 
+    @Override
+    @Transactional
+    public void deleteCurriculumItem(UUID mentorId, UUID packageId, UUID versionId, UUID curriculumId) {
+        ServicePackageVersion version = requireOwnedVersion(mentorId, packageId, versionId);
+        PackageCurriculum curriculum = packageCurriculumRepository.findById(curriculumId)
+                .filter(item -> item.getPackageVersionId().equals(version.getId()))
+                .orElseThrow(() -> new AppException(ServiceErrorCode.CURRICULUM_NOT_FOUND, "Curriculum not found"));
+        packageCurriculumRepository.delete(curriculum);
+    }
+
     private void assertPackageOwner(UUID mentorId, UUID packageId) {
-        servicePackageRepository.findById(packageId)
+        requireOwnedPackage(mentorId, packageId);
+    }
+
+    private ServicePackage requireOwnedPackage(UUID mentorId, UUID packageId) {
+        return servicePackageRepository.findById(packageId)
                 .filter(p -> p.getMentorId().equals(mentorId))
                 .orElseThrow(() -> new AppException(ServiceErrorCode.PACKAGE_NOT_FOUND, "Package not found"));
     }
 
     private ServicePackageVersion requireOwnedVersion(UUID mentorId, UUID packageId, UUID versionId) {
-        ServicePackage pkg = servicePackageRepository.findById(packageId)
-                .filter(p -> p.getMentorId().equals(mentorId))
-                .orElseThrow(() -> new AppException(ServiceErrorCode.PACKAGE_NOT_FOUND, "Package not found"));
+        ServicePackage pkg = requireOwnedPackage(mentorId, packageId);
         return servicePackageVersionRepository.findById(versionId)
                 .filter(v -> v.getPackageId().equals(pkg.getId()))
                 .orElseThrow(() -> new AppException(ServiceErrorCode.SERVICE_VERSION_NOT_FOUND, "Version not found"));

@@ -5,6 +5,7 @@ import com.unishare.api.modules.service.dto.MentorDto.CurriculumItemResponse;
 import com.unishare.api.modules.service.dto.MentorDto.MentorProfileRequest;
 import com.unishare.api.modules.service.dto.MentorDto.MentorProfileResponse;
 import com.unishare.api.modules.service.dto.MentorDto.ServicePackageResponse;
+import com.unishare.api.modules.service.dto.MentorDto.ServicePackageVersionResponse;
 import com.unishare.api.modules.service.dto.request.CreateServicePackageRequest;
 import com.unishare.api.modules.service.dto.request.CreateServicePackageVersionRequest;
 import com.unishare.api.modules.service.dto.request.UpdateServicePackageRequest;
@@ -58,6 +59,15 @@ public interface MentorService {
     Page<ServicePackageResponse> getMyPackages(UUID mentorId, Pageable pageable);
 
     /**
+     * Lấy chi tiết một gói dịch vụ của mentor hiện tại, gồm mọi version.
+     *
+     * @param mentorId ID mentor hiện tại
+     * @param packageId ID gói dịch vụ
+     * @return chi tiết gói dịch vụ
+     */
+    ServicePackageResponse getMyPackage(UUID mentorId, UUID packageId);
+
+    /**
      * Lấy danh sách public của các gói dịch vụ đang mở.
      *
      * @param pageable thông tin phân trang
@@ -91,6 +101,26 @@ public interface MentorService {
      * @return gói dịch vụ sau khi thêm version
      */
     ServicePackageResponse createPackageVersion(UUID mentorId, UUID packageId, CreateServicePackageVersionRequest request);
+
+    /**
+     * Lấy danh sách version của một gói dịch vụ thuộc mentor hiện tại.
+     *
+     * @param mentorId ID mentor hiện tại
+     * @param packageId ID gói dịch vụ
+     * @param pageable thông tin phân trang
+     * @return danh sách version của gói dịch vụ
+     */
+    Page<ServicePackageVersionResponse> getPackageVersions(UUID mentorId, UUID packageId, Pageable pageable);
+
+    /**
+     * Lấy chi tiết một version thuộc gói dịch vụ của mentor hiện tại.
+     *
+     * @param mentorId ID mentor hiện tại
+     * @param packageId ID gói dịch vụ
+     * @param versionId ID version
+     * @return chi tiết version
+     */
+    ServicePackageVersionResponse getPackageVersion(UUID mentorId, UUID packageId, UUID versionId);
 
     /**
      * Cập nhật metadata của gói dịch vụ thuộc mentor hiện tại.
@@ -160,4 +190,14 @@ public interface MentorService {
      * @param curriculumId ID curriculum
      */
     void deleteCurriculumItem(UUID mentorId, UUID curriculumId);
+
+    /**
+     * Xóa một curriculum item trong phiên bản gói thuộc mentor hiện tại.
+     *
+     * @param mentorId ID mentor hiện tại
+     * @param packageId ID gói dịch vụ
+     * @param versionId ID phiên bản gói
+     * @param curriculumId ID curriculum
+     */
+    void deleteCurriculumItem(UUID mentorId, UUID packageId, UUID versionId, UUID curriculumId);
 }
