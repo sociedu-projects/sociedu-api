@@ -41,7 +41,7 @@ public class MentorController {
 
     private final MentorService mentorService;
 
-    @Operation(summary = "Danh sách mentor đã xác minh")
+    @Operation(summary = "Danh sach mentor da xac minh")
     @SecurityRequirements(value = {})
     @GetMapping
     public ResponseEntity<ApiResponse<Page<MentorProfileResponse>>> getAllVerifiedMentors(Pageable pageable) {
@@ -49,7 +49,7 @@ public class MentorController {
                 .withData(mentorService.getAllVerifiedMentors(pageable)));
     }
 
-    @Operation(summary = "Chi tiết mentor")
+    @Operation(summary = "Chi tiet mentor")
     @PermitAll
     @SecurityRequirements(value = {})
     @GetMapping("/{id}")
@@ -58,7 +58,7 @@ public class MentorController {
                 .withData(mentorService.getMentorProfile(id)));
     }
 
-    @Operation(summary = "Gói dịch vụ đang mở của mentor")
+    @Operation(summary = "Goi dich vu dang mo cua mentor")
     @PermitAll
     @SecurityRequirements(value = {})
     @GetMapping("/{id}/packages")
@@ -69,7 +69,18 @@ public class MentorController {
                 .withData(mentorService.getMentorPackages(id, pageable)));
     }
 
-    @Operation(summary = "Cập nhật hồ sơ mentor (me)")
+    @Operation(summary = "Danh sach goi dich vu cua toi")
+    @SecurityRequirement(name = OpenApiConfig.BEARER_JWT)
+    @PreAuthorize("hasRole('MENTOR')")
+    @GetMapping("/me/packages")
+    public ResponseEntity<ApiResponse<Page<ServicePackageResponse>>> getMyPackages(
+            @AuthenticationPrincipal CustomUserPrincipal principal,
+            Pageable pageable) {
+        return ResponseEntity.ok(ApiResponse.<Page<ServicePackageResponse>>build()
+                .withData(mentorService.getMyPackages(principal.getUserId(), pageable)));
+    }
+
+    @Operation(summary = "Cap nhat ho so mentor (me)")
     @SecurityRequirement(name = OpenApiConfig.BEARER_JWT)
     @PreAuthorize("hasRole('MENTOR')")
     @PutMapping("/me")
@@ -81,7 +92,7 @@ public class MentorController {
                 .withData(resp));
     }
 
-    @Operation(summary = "Tạo gói dịch vụ")
+    @Operation(summary = "Tao goi dich vu")
     @SecurityRequirement(name = OpenApiConfig.BEARER_JWT)
     @PreAuthorize("hasRole('MENTOR')")
     @PostMapping("/me/packages")
@@ -92,7 +103,7 @@ public class MentorController {
                 .withData(mentorService.createPackage(principal.getUserId(), request)));
     }
 
-    @Operation(summary = "Xóa gói dịch vụ")
+    @Operation(summary = "Xoa goi dich vu")
     @SecurityRequirement(name = OpenApiConfig.BEARER_JWT)
     @PreAuthorize("hasRole('MENTOR')")
     @DeleteMapping("/me/packages/{pkgId}")
@@ -103,7 +114,7 @@ public class MentorController {
         return ResponseEntity.ok(ApiResponse.<Void>build().withMessage("Package deleted"));
     }
 
-    @Operation(summary = "Thêm mục curriculum cho phiên bản gói")
+    @Operation(summary = "Them muc curriculum cho phien ban goi")
     @SecurityRequirement(name = OpenApiConfig.BEARER_JWT)
     @PreAuthorize("hasRole('MENTOR')")
     @PostMapping("/me/packages/{pkgId}/versions/{verId}/curriculums")
@@ -116,7 +127,7 @@ public class MentorController {
                 .withData(mentorService.addCurriculumItem(principal.getUserId(), pkgId, verId, request)));
     }
 
-    @Operation(summary = "Liệt kê curriculum theo phiên bản gói")
+    @Operation(summary = "Liet ke curriculum theo phien ban goi")
     @SecurityRequirement(name = OpenApiConfig.BEARER_JWT)
     @PreAuthorize("hasRole('MENTOR')")
     @GetMapping("/me/packages/{pkgId}/versions/{verId}/curriculums")
@@ -129,7 +140,7 @@ public class MentorController {
                 .withData(mentorService.listCurriculum(principal.getUserId(), pkgId, verId, pageable)));
     }
 
-    @Operation(summary = "Xóa mục curriculum")
+    @Operation(summary = "Xoa muc curriculum")
     @SecurityRequirement(name = OpenApiConfig.BEARER_JWT)
     @PreAuthorize("hasRole('MENTOR')")
     @DeleteMapping("/me/curriculums/{curriculumId}")
@@ -137,6 +148,6 @@ public class MentorController {
             @AuthenticationPrincipal CustomUserPrincipal principal,
             @PathVariable UUID curriculumId) {
         mentorService.deleteCurriculumItem(principal.getUserId(), curriculumId);
-        return ResponseEntity.ok(ApiResponse.<Void>build().withMessage("Đã xóa mục curriculum"));
+        return ResponseEntity.ok(ApiResponse.<Void>build().withMessage("Da xoa muc curriculum"));
     }
 }

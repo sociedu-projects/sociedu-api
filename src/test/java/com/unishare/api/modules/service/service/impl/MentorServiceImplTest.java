@@ -255,6 +255,44 @@ class MentorServiceImplTest {
     }
 
     @Test
+    void getMyPackages_whenPaged_shouldReturnBothActiveAndInactivePackages() {
+        ServicePackage activePackage = new ServicePackage();
+        activePackage.setId(packageId);
+        activePackage.setMentorId(mentorId);
+        activePackage.setName("Career Planning");
+        activePackage.setDescription("Active package");
+        activePackage.setIsActive(true);
+
+        UUID inactivePackageId = UUID.randomUUID();
+        UUID inactiveVersionId = UUID.randomUUID();
+        ServicePackage inactivePackage = new ServicePackage();
+        inactivePackage.setId(inactivePackageId);
+        inactivePackage.setMentorId(mentorId);
+        inactivePackage.setName("CV Review");
+        inactivePackage.setDescription("Inactive package");
+        inactivePackage.setIsActive(false);
+
+        PageRequest pageable = PageRequest.of(0, 5);
+        when(servicePackageRepository.findByMentorId(mentorId, pageable))
+                .thenReturn(new PageImpl<>(List.of(activePackage, inactivePackage), pageable, 2));
+        when(servicePackageVersionRepository.findByPackageId(packageId)).thenReturn(List.of(savedVersion()));
+        when(packageCurriculumRepository.findByPackageVersionIdOrderByOrderIndexAsc(versionId))
+                .thenReturn(savedCurriculums());
+        when(servicePackageVersionRepository.findByPackageId(inactivePackageId))
+                .thenReturn(List.of(savedVersionFor(inactivePackageId, inactiveVersionId, false)));
+        when(packageCurriculumRepository.findByPackageVersionIdOrderByOrderIndexAsc(inactiveVersionId))
+                .thenReturn(List.of());
+
+        Page<MentorDto.ServicePackageResponse> response = mentorService.getMyPackages(mentorId, pageable);
+
+        assertEquals(2, response.getTotalElements());
+        assertEquals(List.of("Career Planning", "CV Review"),
+                response.getContent().stream().map(MentorDto.ServicePackageResponse::getName).toList());
+        assertEquals(List.of(true, false),
+                response.getContent().stream().map(MentorDto.ServicePackageResponse::getIsActive).toList());
+    }
+
+    @Test
     void getActivePackages_whenPaged_shouldReturnOnlyActiveCatalogPackages() {
         ServicePackage servicePackage = new ServicePackage();
         servicePackage.setId(packageId);
@@ -703,6 +741,17 @@ class MentorServiceImplTest {
         version.setDuration(3);
         version.setDeliveryType("ONLINE");
         version.setIsDefault(true);
+        return version;
+    }
+
+    private ServicePackageVersion savedVersionFor(UUID ownedPackageId, UUID ownedVersionId, boolean isDefault) {
+        ServicePackageVersion version = new ServicePackageVersion();
+        version.setId(ownedVersionId);
+        version.setPackageId(ownedPackageId);
+        version.setPrice(new BigDecimal("80.00"));
+        version.setDuration(2);
+        version.setDeliveryType("OFFLINE");
+        version.setIsDefault(isDefault);
         return version;
     }
 

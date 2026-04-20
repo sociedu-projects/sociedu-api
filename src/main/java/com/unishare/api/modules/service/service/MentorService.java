@@ -49,6 +49,15 @@ public interface MentorService {
     Page<ServicePackageResponse> getMentorPackages(UUID mentorId, Pageable pageable);
 
     /**
+     * Lấy danh sách tất cả gói dịch vụ của mentor hiện tại, gồm cả đang bật và đang tắt.
+     *
+     * @param mentorId ID mentor hiện tại
+     * @param pageable thông tin phân trang
+     * @return danh sách gói dịch vụ của mentor
+     */
+    Page<ServicePackageResponse> getMyPackages(UUID mentorId, Pageable pageable);
+
+    /**
      * Lấy danh sách public của các gói dịch vụ đang mở.
      *
      * @param pageable thông tin phân trang

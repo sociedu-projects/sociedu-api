@@ -14,6 +14,8 @@ import java.util.UUID;
 public interface ServicePackageRepository extends JpaRepository<ServicePackage, UUID> {
     List<ServicePackage> findByMentorId(UUID mentorId);
 
+    Page<ServicePackage> findByMentorId(UUID mentorId, Pageable pageable);
+
     Page<ServicePackage> findByMentorIdAndIsActiveTrue(UUID mentorId, Pageable pageable);
 
     Page<ServicePackage> findByIsActiveTrue(Pageable pageable);
