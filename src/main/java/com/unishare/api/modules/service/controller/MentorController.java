@@ -16,6 +16,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 
@@ -27,13 +28,18 @@ public class MentorController {
 
     private final MentorService mentorService;
 
-    // Public Mentor Directory
-    @Operation(summary = "Danh sách mentor đã xác minh")
+    // Public Mentor Directory — nguồn: user có role MENTOR (có thể chưa có mentor_profiles)
+    @Operation(summary = "Tìm & lọc danh bạ mentor (role MENTOR + tùy chọn hồ sơ dịch vụ)")
     @SecurityRequirements(value = {})
     @GetMapping
-    public ResponseEntity<ApiResponse<List<MentorProfileResponse>>> getAllVerifiedMentors() {
+    public ResponseEntity<ApiResponse<List<MentorProfileResponse>>> searchMentors(
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false, defaultValue = "false") Boolean verifiedOnly,
+            @RequestParam(required = false) BigDecimal maxPrice,
+            @RequestParam(required = false) List<String> expertise,
+            @RequestParam(required = false, defaultValue = "popular") String sort) {
         return ResponseEntity.ok(ApiResponse.<List<MentorProfileResponse>>build()
-                .withData(mentorService.getAllVerifiedMentors()));
+                .withData(mentorService.searchMentors(q, verifiedOnly, maxPrice, expertise, sort)));
     }
 
     @Operation(summary = "Chi tiết mentor")

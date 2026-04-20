@@ -6,4 +6,7 @@ public final class MentorVerificationStatuses {
     private MentorVerificationStatuses() {}
 
     public static final String PENDING = "pending";
+
+    /** Đã xác minh — hiển thị trên danh bạ công khai. */
+    public static final String VERIFIED = "verified";
 }

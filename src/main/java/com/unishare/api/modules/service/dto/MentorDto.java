@@ -19,6 +19,8 @@ public class MentorDto {
     @Builder
     public static class MentorProfileResponse {
         private UUID userId;
+        /** Tên hiển thị từ {@code user_profiles} (khi có). */
+        private String displayName;
         private String headline;
         private String expertise;
         private BigDecimal basePrice;
