@@ -6,4 +6,5 @@ public final class MentorVerificationStatuses {
     private MentorVerificationStatuses() {}
 
     public static final String PENDING = "pending";
+    public static final String VERIFIED = "verified";
 }

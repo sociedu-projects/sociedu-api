@@ -1,5 +1,9 @@
 package com.unishare.api.modules.service.dto;
 
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import lombok.Builder;
 import lombok.Data;
 import java.math.BigDecimal;
@@ -10,8 +14,14 @@ public class MentorDto {
 
     @Data
     public static class MentorProfileRequest {
+        @NotBlank(message = "Headline không được để trống")
         private String headline;
+
+        @NotBlank(message = "Expertise không được để trống")
         private String expertise;
+
+        @NotNull(message = "Base price không được để trống")
+        @DecimalMin(value = "0.0", inclusive = true, message = "Base price phải lớn hơn hoặc bằng 0")
         private BigDecimal basePrice;
     }
 
@@ -45,6 +55,7 @@ public class MentorDto {
         private Integer duration;
         private String deliveryType;
         private Boolean isDefault;
+        private List<CurriculumItemResponse> curriculums;
     }
 
     @Data
@@ -60,9 +71,16 @@ public class MentorDto {
 
     @Data
     public static class CurriculumItemRequest {
+        @NotBlank(message = "Tiêu đề curriculum không được để trống")
         private String title;
         private String description;
+
+        @NotNull(message = "Thứ tự curriculum không được để trống")
+        @Min(value = 1, message = "Thứ tự curriculum phải lớn hơn hoặc bằng 1")
         private Integer orderIndex;
+
+        @NotNull(message = "Thời lượng curriculum không được để trống")
+        @Min(value = 1, message = "Thời lượng curriculum phải lớn hơn hoặc bằng 1")
         private Integer duration;
     }
 
