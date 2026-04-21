@@ -5,15 +5,16 @@ import lombok.Data;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 
 @Data
 @Builder
 public class ChatMessageResponse {
-    private Long id;
-    private Long senderId;
+    private UUID id;
+    private UUID senderId;
     private String content;
     private String type;
     private Boolean edited;
     private Instant createdAt;
-    private List<Long> attachmentFileIds;
+    private List<UUID> attachmentFileIds;
 }

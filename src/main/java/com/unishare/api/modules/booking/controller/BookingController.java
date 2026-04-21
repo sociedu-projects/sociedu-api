@@ -16,6 +16,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/bookings")
@@ -49,7 +50,7 @@ public class BookingController {
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<BookingResponse>> get(
             @AuthenticationPrincipal CustomUserPrincipal principal,
-            @PathVariable Long id) {
+            @PathVariable UUID id) {
         return ResponseEntity.ok(ApiResponse.<BookingResponse>build()
                 .withData(bookingService.getById(id, principal.getUserId())));
     }
@@ -59,8 +60,8 @@ public class BookingController {
     @PatchMapping("/{bookingId}/sessions/{sessionId}")
     public ResponseEntity<ApiResponse<BookingSessionResponse>> updateSession(
             @AuthenticationPrincipal CustomUserPrincipal principal,
-            @PathVariable Long bookingId,
-            @PathVariable Long sessionId,
+            @PathVariable UUID bookingId,
+            @PathVariable UUID sessionId,
             @RequestBody UpdateSessionRequest request) {
         return ResponseEntity.ok(ApiResponse.<BookingSessionResponse>build()
                 .withData(bookingService.updateSession(bookingId, sessionId, principal.getUserId(), request)));
@@ -71,8 +72,8 @@ public class BookingController {
     @PostMapping("/{bookingId}/sessions/{sessionId}/evidences")
     public ResponseEntity<ApiResponse<EvidenceResponse>> addEvidence(
             @AuthenticationPrincipal CustomUserPrincipal principal,
-            @PathVariable Long bookingId,
-            @PathVariable Long sessionId,
+            @PathVariable UUID bookingId,
+            @PathVariable UUID sessionId,
             @Valid @RequestBody AddEvidenceRequest request) {
         return ResponseEntity.ok(ApiResponse.<EvidenceResponse>build()
                 .withData(bookingService.addEvidence(bookingId, sessionId, principal.getUserId(), request)));

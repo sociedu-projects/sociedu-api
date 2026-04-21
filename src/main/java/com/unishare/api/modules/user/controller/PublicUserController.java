@@ -2,13 +2,14 @@ package com.unishare.api.modules.user.controller;
 
 import com.unishare.api.common.dto.ApiResponse;
 import com.unishare.api.modules.user.dto.*;
+import java.util.UUID;
 import com.unishare.api.modules.user.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PermitAll;
+import jakarta.annotation.security.PermitAll;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -23,7 +24,7 @@ public class PublicUserController {
     @PermitAll
     @SecurityRequirements(value = {})
     @GetMapping("/{id}/profile")
-    public ResponseEntity<ApiResponse<UserFullProfileResponse>> getFullProfile(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<UserFullProfileResponse>> getFullProfile(@PathVariable UUID id) {
         UserProfileResponse profile = userService.getProfile(id);
         
         UserFullProfileResponse fullProfile = UserFullProfileResponse.builder()

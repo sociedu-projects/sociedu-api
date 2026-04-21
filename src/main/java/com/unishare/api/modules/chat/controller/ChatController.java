@@ -16,6 +16,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/chat")
@@ -50,7 +51,7 @@ public class ChatController {
     @GetMapping("/conversations/{conversationId}/messages")
     public ResponseEntity<ApiResponse<List<ChatMessageResponse>>> listMessages(
             @AuthenticationPrincipal CustomUserPrincipal principal,
-            @PathVariable Long conversationId) {
+            @PathVariable UUID conversationId) {
         return ResponseEntity.ok(ApiResponse.<List<ChatMessageResponse>>build()
                 .withData(chatService.listMessages(principal.getUserId(), conversationId)));
     }
@@ -60,7 +61,7 @@ public class ChatController {
     @PostMapping("/conversations/{conversationId}/messages")
     public ResponseEntity<ApiResponse<ChatMessageResponse>> send(
             @AuthenticationPrincipal CustomUserPrincipal principal,
-            @PathVariable Long conversationId,
+            @PathVariable UUID conversationId,
             @RequestBody SendMessageRequest request) {
         return ResponseEntity.ok(ApiResponse.<ChatMessageResponse>build()
                 .withData(chatService.sendMessage(principal.getUserId(), conversationId, request)));

@@ -4,6 +4,6 @@ package com.unishare.api.common.event;
 public record BookingCreatedNotificationMailEvent(
         String buyerEmail,
         String mentorEmail,
-        long bookingId,
-        long orderId)
+        java.util.UUID bookingId,
+        java.util.UUID orderId)
         implements DomainEvent {}

@@ -75,9 +75,11 @@ public class AuthController {
 
     @Operation(summary = "Xác minh email")
     @PostMapping("/verify-email")
-    public ResponseEntity<ApiResponse<Void>> verifyEmail(@Valid @RequestBody VerifyEmailRequest request) {
-        authService.verifyEmail(request.getToken());
-        return ResponseEntity.ok(ApiResponse.<Void>build().withMessage("Xác minh email thành công."));
+    public ResponseEntity<ApiResponse<AuthResponse>> verifyEmail(@Valid @RequestBody VerifyEmailRequest request) {
+        AuthResponse data = authService.verifyEmail(request.getToken());
+        return ResponseEntity.ok(ApiResponse.<AuthResponse>build()
+                .withData(data)
+                .withMessage("Xác minh email thành công."));
     }
 
     @Operation(summary = "Gửi lại email xác minh")

@@ -16,6 +16,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/trust")
@@ -50,7 +51,7 @@ public class TrustController {
     @PostMapping("/reports/{reportId}/evidences")
     public ResponseEntity<ApiResponse<ModerationReportResponse>> addEvidence(
             @AuthenticationPrincipal CustomUserPrincipal principal,
-            @PathVariable Long reportId,
+            @PathVariable UUID reportId,
             @Valid @RequestBody AddReportEvidenceRequest request) {
         return ResponseEntity.ok(ApiResponse.<ModerationReportResponse>build()
                 .withData(trustService.addEvidence(principal.getUserId(), reportId, request)));
@@ -61,7 +62,7 @@ public class TrustController {
     @PreAuthorize("hasAuthority(T(com.unishare.api.common.constants.Capabilities).RESOLVE_REPORT)")
     public ResponseEntity<ApiResponse<ModerationReportResponse>> resolveReport(
             @AuthenticationPrincipal CustomUserPrincipal principal,
-            @PathVariable Long reportId,
+            @PathVariable UUID reportId,
             @Valid @RequestBody ResolveReportRequest request) {
         return ResponseEntity.ok(ApiResponse.<ModerationReportResponse>build()
                 .withData(trustService.resolveReport(principal.getUserId(), reportId, request)));
@@ -91,7 +92,7 @@ public class TrustController {
     @PreAuthorize("hasAuthority(T(com.unishare.api.common.constants.Capabilities).RESOLVE_DISPUTE)")
     public ResponseEntity<ApiResponse<DisputeResponse>> resolveDispute(
             @AuthenticationPrincipal CustomUserPrincipal principal,
-            @PathVariable Long disputeId,
+            @PathVariable UUID disputeId,
             @Valid @RequestBody ResolveDisputeRequest request) {
         return ResponseEntity.ok(ApiResponse.<DisputeResponse>build()
                 .withData(trustService.resolveDispute(principal.getUserId(), disputeId, request)));

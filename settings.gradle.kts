@@ -1,1 +1,1 @@
-rootProject.name = "unishare_api"
+rootProject.name = "sociedu-api"

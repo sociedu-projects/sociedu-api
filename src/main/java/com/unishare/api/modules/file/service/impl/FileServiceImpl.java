@@ -13,6 +13,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.UUID;
+
 @Service
 @RequiredArgsConstructor
 public class FileServiceImpl implements FileService {
@@ -22,8 +24,8 @@ public class FileServiceImpl implements FileService {
 
     @Override
     @Transactional
-    public FileUploadResponse upload(Long uploaderId, MultipartFile file, String folder, String visibility,
-                                     String entityType, Long entityId) {
+    public FileUploadResponse upload(UUID uploaderId, MultipartFile file, String folder, String visibility,
+                                     String entityType, UUID entityId) {
         String url = fileStorageService.uploadFile(file, folder != null ? folder : "uploads");
         StoredFile sf = new StoredFile();
         sf.setUploaderId(uploaderId);
@@ -40,7 +42,7 @@ public class FileServiceImpl implements FileService {
 
     @Override
     @Transactional(readOnly = true)
-    public FileUploadResponse getFile(Long fileId, Long requesterUserId) {
+    public FileUploadResponse getFile(UUID fileId, UUID requesterUserId) {
         StoredFile sf = storedFileRepository.findByIdAndDeletedAtIsNull(fileId)
                 .orElseThrow(() -> new AppException(FileErrorCode.FILE_NOT_FOUND));
         if (!FileVisibility.PUBLIC.equalsIgnoreCase(sf.getVisibility())
@@ -52,7 +54,7 @@ public class FileServiceImpl implements FileService {
 
     @Override
     @Transactional
-    public void softDelete(Long fileId, Long requesterUserId) {
+    public void softDelete(UUID fileId, UUID requesterUserId) {
         StoredFile sf = storedFileRepository.findByIdAndDeletedAtIsNull(fileId)
                 .orElseThrow(() -> new AppException(FileErrorCode.FILE_NOT_FOUND));
         if (sf.getUploaderId() == null || !sf.getUploaderId().equals(requesterUserId)) {
