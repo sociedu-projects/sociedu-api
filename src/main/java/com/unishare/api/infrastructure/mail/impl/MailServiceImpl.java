@@ -78,6 +78,26 @@ public class MailServiceImpl implements MailService {
         }
     }
 
+    @Override
+    public void sendMentorApprovedNotice(String toEmail, java.util.UUID requestId) {
+        String subject = "[" + brandName + "] Đơn apply mentor được duyệt";
+        String html = simpleCard(
+                "Chúc mừng, đơn apply mentor đã được duyệt!",
+                "Đơn <strong>" + requestId + "</strong> của bạn đã được duyệt. Vai trò <strong>MENTOR</strong> sẽ có hiệu lực ở lần đăng nhập (hoặc refresh token) kế tiếp. Hãy đăng nhập lại để hoàn thiện hồ sơ mentor và bắt đầu tiếp nhận booking.");
+        sendHtmlEmail(toEmail, subject, html);
+    }
+
+    @Override
+    public void sendMentorRejectedNotice(String toEmail, java.util.UUID requestId, String reason) {
+        String subject = "[" + brandName + "] Đơn apply mentor bị từ chối";
+        String safeReason = reason == null ? "" : reason.replace("<", "&lt;").replace(">", "&gt;");
+        String html = simpleCard(
+                "Đơn apply mentor chưa được duyệt",
+                "Đơn <strong>" + requestId + "</strong> của bạn chưa được duyệt. Lý do: <em>" + safeReason
+                        + "</em>.<br/>Bạn có thể chỉnh sửa và nộp lại đơn trong tài khoản UniShare.");
+        sendHtmlEmail(toEmail, subject, html);
+    }
+
     private String simpleCard(String title, String paragraphHtml) {
         return """
                 <!DOCTYPE html><html><body style="font-family:Segoe UI,Roboto,sans-serif;background:#f1f5f9;padding:24px;">

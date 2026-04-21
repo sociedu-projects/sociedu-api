@@ -18,4 +18,10 @@ public interface MailService {
 
     /** Trigger: {@link com.unishare.api.common.event.BookingCreatedNotificationMailEvent}. */
     void sendBookingCreatedNotice(String buyerEmail, String mentorEmail, java.util.UUID bookingId, java.util.UUID orderId);
+
+    /** Trigger: {@link com.unishare.api.common.event.MentorApprovedNotificationMailEvent}. */
+    void sendMentorApprovedNotice(String toEmail, java.util.UUID requestId);
+
+    /** Trigger: {@link com.unishare.api.common.event.MentorRejectedNotificationMailEvent}. */
+    void sendMentorRejectedNotice(String toEmail, java.util.UUID requestId, String reason);
 }

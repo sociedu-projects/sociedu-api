@@ -3,6 +3,10 @@ package com.unishare.api.infrastructure.mail.listener;
 import com.unishare.api.common.event.BookingCreatedEvent;
 import com.unishare.api.infrastructure.event.DomainEventPublisher;
 import com.unishare.api.common.event.BookingCreatedNotificationMailEvent;
+import com.unishare.api.common.event.MentorApprovedNotificationMailEvent;
+import com.unishare.api.common.event.MentorRejectedNotificationMailEvent;
+import com.unishare.api.common.event.MentorRequestApprovedEvent;
+import com.unishare.api.common.event.MentorRequestRejectedEvent;
 import com.unishare.api.common.event.OrderPaidEvent;
 import com.unishare.api.common.event.OrderPaidNotificationMailEvent;
 import com.unishare.api.common.event.OrderPaymentFailedEvent;
@@ -62,5 +66,27 @@ public class DomainMailEventListener {
         }
         eventPublisher.publish(
                 new BookingCreatedNotificationMailEvent(buyerEmail, mentorEmail, event.bookingId(), event.orderId()));
+    }
+
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void onMentorRequestApproved(MentorRequestApprovedEvent event) {
+        userRepository.findById(event.userId())
+                .map(u -> u.getEmail())
+                .filter(e -> e != null && !e.isBlank())
+                .ifPresentOrElse(
+                        email -> eventPublisher.publish(
+                                new MentorApprovedNotificationMailEvent(email, event.requestId())),
+                        () -> log.warn("[Mail] MentorApproved: no email for userId={}", event.userId()));
+    }
+
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void onMentorRequestRejected(MentorRequestRejectedEvent event) {
+        userRepository.findById(event.userId())
+                .map(u -> u.getEmail())
+                .filter(e -> e != null && !e.isBlank())
+                .ifPresentOrElse(
+                        email -> eventPublisher.publish(
+                                new MentorRejectedNotificationMailEvent(email, event.requestId(), event.reason())),
+                        () -> log.warn("[Mail] MentorRejected: no email for userId={}", event.userId()));
     }
 }
