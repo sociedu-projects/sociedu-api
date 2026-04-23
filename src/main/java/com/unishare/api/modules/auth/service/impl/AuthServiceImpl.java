@@ -14,9 +14,9 @@ import com.unishare.api.modules.auth.exception.AuthErrorCode;
 import com.unishare.api.infrastructure.security.JwtService;
 import com.unishare.api.modules.auth.entity.*;
 import com.unishare.api.modules.auth.repository.*;
-import com.unishare.api.modules.user.entity.UserProfile;
-import com.unishare.api.modules.user.repository.UserProfileRepository;
 import com.unishare.api.modules.auth.service.AuthService;
+import com.unishare.api.modules.user.dto.UserProfileResponse;
+import com.unishare.api.modules.user.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -56,7 +56,7 @@ public class AuthServiceImpl implements AuthService {
     private final JwtService jwtService;
     private final PasswordEncoder passwordEncoder;
     private final DomainEventPublisher eventPublisher;
-    private final UserProfileRepository userProfileRepository;
+    private final UserService userService;
 
     // ------------------------------------------------------------------ register
     @Override
@@ -86,16 +86,15 @@ public class AuthServiceImpl implements AuthService {
 
         user = userRepository.save(user);
 
-        UserProfile profile = new UserProfile();
-        profile.setUserId(user.getId());
-        profile.setFirstName(request.getFirstName().trim());
-        profile.setLastName(request.getLastName().trim());
-        userProfileRepository.save(profile);
+        userService.createProfileForNewUser(
+                user.getId(),
+                request.getFirstName(),
+                request.getLastName());
 
         sendVerificationLink(user);
         log.info("[Auth] Registered user: {}", user.getEmail());
 
-        return buildRegisterResponse(user, profile);
+        return buildRegisterResponse(user, userService.getProfile(user.getId()));
     }
 
     // ------------------------------------------------------------------ login
@@ -128,7 +127,7 @@ public class AuthServiceImpl implements AuthService {
                 .map(ur -> ur.getRole().getName())
                 .toList();
 
-        UserProfile profile = userProfileRepository.findById(user.getId()).orElse(null);
+        UserProfileResponse profile = userService.getProfile(user.getId());
 
         log.info("[Auth] User logged in: {}", user.getEmail());
         return buildAuthResponse(user, roles, profile, ipAddress, userAgent);
@@ -168,7 +167,7 @@ public class AuthServiceImpl implements AuthService {
                 .map(ur -> ur.getRole().getName())
                 .toList();
 
-        UserProfile profile = userProfileRepository.findById(user.getId()).orElse(null);
+        UserProfileResponse profile = userService.getProfile(user.getId());
 
         stored.setLastUsedAt(Instant.now());
         if (ipAddress != null && !ipAddress.isBlank()) {
@@ -189,8 +188,8 @@ public class AuthServiceImpl implements AuthService {
                 .expiresIn(jwtService.getAccessTokenExpirationSeconds())
                 .userId(user.getId())
                 .email(user.getEmail())
-                .firstName(profile != null ? profile.getFirstName() : null)
-                .lastName(profile != null ? profile.getLastName() : null)
+                .firstName(profile.getFirstName())
+                .lastName(profile.getLastName())
                 .roles(roles)
                 .build();
     }
@@ -247,7 +246,7 @@ public class AuthServiceImpl implements AuthService {
         List<String> roles = user.getUserRoles().stream()
                 .map(ur -> ur.getRole().getName())
                 .toList();
-        UserProfile profile = userProfileRepository.findById(user.getId()).orElse(null);
+        UserProfileResponse profile = userService.getProfile(user.getId());
 
         if (Boolean.TRUE.equals(user.getEmailVerified())) {
             otp.setUsed(true);
@@ -314,7 +313,7 @@ public class AuthServiceImpl implements AuthService {
     public MeResponse getMe(UUID userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new AppException(AuthErrorCode.USER_NOT_FOUND, "Người dùng không tồn tại"));
-        UserProfile profile = userProfileRepository.findById(userId).orElse(null);
+        UserProfileResponse profile = userService.getProfile(userId);
         List<String> roles = user.getUserRoles().stream()
                 .map(ur -> ur.getRole().getName())
                 .toList();
@@ -325,10 +324,10 @@ public class AuthServiceImpl implements AuthService {
                 .email(user.getEmail())
                 .emailVerified(user.getEmailVerified())
                 .status(user.getStatus())
-                .firstName(profile != null ? profile.getFirstName() : null)
-                .lastName(profile != null ? profile.getLastName() : null)
-                .fullName(profile != null ? profile.getDisplayName() : null)
-                .headline(profile != null ? profile.getHeadline() : null)
+                .firstName(profile.getFirstName())
+                .lastName(profile.getLastName())
+                .fullName(displayNameFromProfile(profile))
+                .headline(profile.getHeadline())
                 .avatarUrl(null)
                 .roles(roles)
                 .capabilities(capabilities)
@@ -398,7 +397,7 @@ public class AuthServiceImpl implements AuthService {
     }
 
     // ------------------------------------------------------------------ helpers
-    private AuthResponse buildAuthResponse(User user, List<String> roles, UserProfile profile,
+    private AuthResponse buildAuthResponse(User user, List<String> roles, UserProfileResponse profile,
                                            String ipAddress, String userAgent) {
         String accessToken = jwtService.generateAccessToken(user.getId(), roles);
         String rawRefreshToken = jwtService.generateRefreshToken();
@@ -420,13 +419,13 @@ public class AuthServiceImpl implements AuthService {
                 .expiresIn(jwtService.getAccessTokenExpirationSeconds())
                 .userId(user.getId())
                 .email(user.getEmail())
-                .firstName(profile != null ? profile.getFirstName() : null)
-                .lastName(profile != null ? profile.getLastName() : null)
+                .firstName(profile.getFirstName())
+                .lastName(profile.getLastName())
                 .roles(roles)
                 .build();
     }
 
-    private AuthResponse buildRegisterResponse(User user, UserProfile profile) {
+    private AuthResponse buildRegisterResponse(User user, UserProfileResponse profile) {
         List<String> roles = user.getUserRoles().stream()
                 .map(ur -> ur.getRole().getName())
                 .toList();
@@ -438,10 +437,17 @@ public class AuthServiceImpl implements AuthService {
                 .expiresIn(null)
                 .userId(user.getId())
                 .email(user.getEmail())
-                .firstName(profile != null ? profile.getFirstName() : null)
-                .lastName(profile != null ? profile.getLastName() : null)
+                .firstName(profile.getFirstName())
+                .lastName(profile.getLastName())
                 .roles(roles)
                 .build();
+    }
+
+    private static String displayNameFromProfile(UserProfileResponse p) {
+        String a = p.getFirstName() != null ? p.getFirstName().trim() : "";
+        String b = p.getLastName() != null ? p.getLastName().trim() : "";
+        String s = (a + " " + b).trim();
+        return s.isEmpty() ? "Người dùng" : s;
     }
 
     private String generateSecureToken() {

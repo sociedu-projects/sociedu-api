@@ -2,7 +2,9 @@ package com.unishare.api.modules.user.service;
 
 import com.unishare.api.modules.user.dto.*;
 
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 public interface UserService {
@@ -10,6 +12,12 @@ public interface UserService {
     // Profile
     UserProfileResponse getProfile(UUID userId);
     UserProfileResponse updateProfile(UUID userId, UserProfileRequest request);
+
+    /** Gọi từ auth sau khi tạo user — chỉ tạo khi chưa có profile. */
+    void createProfileForNewUser(UUID userId, String firstName, String lastName);
+
+    /** Đọc tên theo batch (admin, auth) — userId không có profile sẽ không có trong map. */
+    Map<UUID, UserProfileNames> getProfileNamesByUserIds(Collection<UUID> userIds);
 
     // Education
     List<UserEducationResponse> getEducations(UUID userId);
