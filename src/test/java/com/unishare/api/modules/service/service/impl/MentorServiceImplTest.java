@@ -293,6 +293,77 @@ class MentorServiceImplTest {
     }
 
     @Test
+    void getMyPackage_whenOwnedPackageExists_shouldReturnFullPackageDetail() {
+        ServicePackage servicePackage = new ServicePackage();
+        servicePackage.setId(packageId);
+        servicePackage.setMentorId(mentorId);
+        servicePackage.setName("Career Planning");
+        servicePackage.setDescription("Package description");
+        servicePackage.setIsActive(false);
+
+        when(servicePackageRepository.findById(packageId)).thenReturn(Optional.of(servicePackage));
+        when(servicePackageVersionRepository.findByPackageId(packageId)).thenReturn(List.of(savedVersion()));
+        when(packageCurriculumRepository.findByPackageVersionIdOrderByOrderIndexAsc(versionId))
+                .thenReturn(savedCurriculums());
+
+        MentorDto.ServicePackageResponse response = mentorService.getMyPackage(mentorId, packageId);
+
+        assertEquals(packageId, response.getId());
+        assertEquals("Career Planning", response.getName());
+        assertEquals(false, response.getIsActive());
+        assertEquals(1, response.getVersions().size());
+    }
+
+    @Test
+    void getPackageVersions_whenOwnedPackageExists_shouldReturnPagedVersions() {
+        ServicePackage servicePackage = new ServicePackage();
+        servicePackage.setId(packageId);
+        servicePackage.setMentorId(mentorId);
+
+        PageRequest pageable = PageRequest.of(0, 5);
+        UUID secondVersionId = UUID.randomUUID();
+        when(servicePackageRepository.findById(packageId)).thenReturn(Optional.of(servicePackage));
+        when(servicePackageVersionRepository.findByPackageId(packageId, pageable))
+                .thenReturn(new PageImpl<>(
+                        List.of(savedVersion(), savedVersionFor(packageId, secondVersionId, false)),
+                        pageable,
+                        2
+                ));
+        when(packageCurriculumRepository.findByPackageVersionIdOrderByOrderIndexAsc(versionId))
+                .thenReturn(savedCurriculums());
+        when(packageCurriculumRepository.findByPackageVersionIdOrderByOrderIndexAsc(secondVersionId))
+                .thenReturn(List.of());
+
+        Page<MentorDto.ServicePackageVersionResponse> response =
+                mentorService.getPackageVersions(mentorId, packageId, pageable);
+
+        assertEquals(2, response.getTotalElements());
+        assertEquals(2, response.getContent().size());
+        assertTrue(response.getContent().get(0).getIsDefault());
+        assertEquals(false, response.getContent().get(1).getIsDefault());
+    }
+
+    @Test
+    void getPackageVersion_whenOwnedVersionExists_shouldReturnVersionDetail() {
+        ServicePackage servicePackage = new ServicePackage();
+        servicePackage.setId(packageId);
+        servicePackage.setMentorId(mentorId);
+        ServicePackageVersion version = savedVersion();
+
+        when(servicePackageRepository.findById(packageId)).thenReturn(Optional.of(servicePackage));
+        when(servicePackageVersionRepository.findById(versionId)).thenReturn(Optional.of(version));
+        when(packageCurriculumRepository.findByPackageVersionIdOrderByOrderIndexAsc(versionId))
+                .thenReturn(savedCurriculums());
+
+        MentorDto.ServicePackageVersionResponse response =
+                mentorService.getPackageVersion(mentorId, packageId, versionId);
+
+        assertEquals(versionId, response.getId());
+        assertEquals(2, response.getCurriculums().size());
+        assertTrue(response.getIsDefault());
+    }
+
+    @Test
     void getActivePackages_whenPaged_shouldReturnOnlyActiveCatalogPackages() {
         ServicePackage servicePackage = new ServicePackage();
         servicePackage.setId(packageId);
@@ -697,6 +768,26 @@ class MentorServiceImplTest {
         assertEquals(List.of(1, 2), response.getContent().stream()
                 .map(MentorDto.CurriculumItemResponse::getOrderIndex)
                 .toList());
+    }
+
+    @Test
+    void deleteCurriculumItemByTree_whenOwnedCurriculumExists_shouldDeleteCurriculum() {
+        ServicePackage servicePackage = new ServicePackage();
+        servicePackage.setId(packageId);
+        servicePackage.setMentorId(mentorId);
+        ServicePackageVersion version = savedVersion();
+        UUID curriculumId = UUID.randomUUID();
+        PackageCurriculum curriculum = new PackageCurriculum();
+        curriculum.setId(curriculumId);
+        curriculum.setPackageVersionId(versionId);
+
+        when(servicePackageRepository.findById(packageId)).thenReturn(Optional.of(servicePackage));
+        when(servicePackageVersionRepository.findById(versionId)).thenReturn(Optional.of(version));
+        when(packageCurriculumRepository.findById(curriculumId)).thenReturn(Optional.of(curriculum));
+
+        mentorService.deleteCurriculumItem(mentorId, packageId, versionId, curriculumId);
+
+        verify(packageCurriculumRepository).delete(curriculum);
     }
 
     private CreateServicePackageRequest validRequest() {
