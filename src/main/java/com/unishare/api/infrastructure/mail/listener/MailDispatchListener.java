@@ -2,6 +2,8 @@ package com.unishare.api.infrastructure.mail.listener;
 
 import com.unishare.api.common.event.BookingCreatedNotificationMailEvent;
 import com.unishare.api.common.event.EmailVerificationMailEvent;
+import com.unishare.api.common.event.MentorApprovedNotificationMailEvent;
+import com.unishare.api.common.event.MentorRejectedNotificationMailEvent;
 import com.unishare.api.common.event.OrderPaidNotificationMailEvent;
 import com.unishare.api.common.event.OrderPaymentFailedNotificationMailEvent;
 import com.unishare.api.common.event.PasswordResetMailEvent;
@@ -53,5 +55,17 @@ public class MailDispatchListener {
     public void onBookingCreatedNotification(BookingCreatedNotificationMailEvent event) {
         mailService.sendBookingCreatedNotice(
                 event.buyerEmail(), event.mentorEmail(), event.bookingId(), event.orderId());
+    }
+
+    @EventListener
+    @Async
+    public void onMentorApprovedNotification(MentorApprovedNotificationMailEvent event) {
+        mailService.sendMentorApprovedNotice(event.toEmail(), event.requestId());
+    }
+
+    @EventListener
+    @Async
+    public void onMentorRejectedNotification(MentorRejectedNotificationMailEvent event) {
+        mailService.sendMentorRejectedNotice(event.toEmail(), event.requestId(), event.reason());
     }
 }

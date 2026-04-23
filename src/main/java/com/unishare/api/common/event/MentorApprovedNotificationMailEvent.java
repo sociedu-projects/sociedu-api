@@ -1,0 +1,9 @@
+package com.unishare.api.common.event;
+
+import java.util.UUID;
+
+/**
+ * Email notification - mentor request approved (dispatched async via MailDispatchListener).
+ */
+public record MentorApprovedNotificationMailEvent(String toEmail, UUID requestId) implements DomainEvent {
+}

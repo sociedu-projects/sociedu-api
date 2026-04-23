@@ -139,18 +139,8 @@ public class AuthServiceImpl implements AuthService {
     @Transactional
     public AuthResponse refreshToken(RefreshTokenRequest request, String ipAddress, String userAgent) {
         RefreshToken stored = refreshTokenRepository
-                .findByToken(request.getRefreshToken())
+                .findByTokenAndRevokedFalse(request.getRefreshToken())
                 .orElseThrow(() -> new AppException(AuthErrorCode.INVALID_TOKEN, "Refresh token không hợp lệ"));
-
-        // Reuse-detection: token đã bị replace (rotation đã thực hiện) hoặc đã revoke
-        // mà vẫn được gửi lên => nghi bị đánh cắp, revoke toàn bộ phiên của user.
-        if (Boolean.TRUE.equals(stored.getRevoked()) || stored.getReplacedById() != null) {
-            log.warn("[Auth] Refresh token reuse detected for userId={}, revoking all sessions",
-                    stored.getUserId());
-            refreshTokenRepository.revokeAllByUserId(stored.getUserId());
-            throw new AppException(AuthErrorCode.REFRESH_TOKEN_REUSED,
-                    "Phát hiện sử dụng lại refresh token, toàn bộ phiên đã bị thu hồi");
-        }
 
         if (stored.isExpired()) {
             stored.setRevoked(true);
@@ -174,31 +164,27 @@ public class AuthServiceImpl implements AuthService {
             throw new AppException(AuthErrorCode.ACCOUNT_DISABLED, "Tài khoản đã bị vô hiệu hóa");
         }
 
-        // Rotation: issue a new refresh token and mark the old one as replaced.
-        String newRawRefreshToken = jwtService.generateRefreshToken();
-        RefreshToken newToken = RefreshToken.of(
-                user.getId(),
-                newRawRefreshToken,
-                jwtService.getRefreshTokenExpiry(),
-                ipAddress != null ? ipAddress : stored.getIpAddress(),
-                userAgent != null ? userAgent : stored.getUserAgent(),
-                parseDeviceInfo(userAgent != null ? userAgent : stored.getUserAgent()));
-        newToken = refreshTokenRepository.save(newToken);
-
-        stored.setReplacedById(newToken.getId());
-        stored.setLastUsedAt(Instant.now());
-        refreshTokenRepository.save(stored);
-
         List<String> roles = user.getUserRoles().stream()
                 .map(ur -> ur.getRole().getName())
                 .toList();
 
         UserProfile profile = userProfileRepository.findById(user.getId()).orElse(null);
+
+        stored.setLastUsedAt(Instant.now());
+        if (ipAddress != null && !ipAddress.isBlank()) {
+            stored.setIpAddress(ipAddress.trim());
+        }
+        if (userAgent != null && !userAgent.isBlank()) {
+            stored.setUserAgent(userAgent.trim());
+            stored.setDeviceInfo(toDeviceInfo(userAgent));
+        }
+        refreshTokenRepository.save(stored);
+
         String newAccessToken = jwtService.generateAccessToken(user.getId(), roles);
 
         return AuthResponse.builder()
                 .accessToken(newAccessToken)
-                .refreshToken(newRawRefreshToken)
+                .refreshToken(stored.getToken())
                 .tokenType("Bearer")
                 .expiresIn(jwtService.getAccessTokenExpirationSeconds())
                 .userId(user.getId())
@@ -266,7 +252,7 @@ public class AuthServiceImpl implements AuthService {
         if (Boolean.TRUE.equals(user.getEmailVerified())) {
             otp.setUsed(true);
             otpTokenRepository.save(otp);
-            return buildAuthResponse(user, roles, profile);
+            return buildAuthResponse(user, roles, profile, null, null);
         }
 
         otp.setUsed(true);
@@ -276,13 +262,14 @@ public class AuthServiceImpl implements AuthService {
         user.setStatus(UserStatuses.ACTIVE);
         userRepository.save(user);
         log.info("[Auth] Email verified for userId={}", user.getId());
-        return buildAuthResponse(user, roles, profile);
+        return buildAuthResponse(user, roles, profile, null, null);
     }
 
     // ------------------------------------------------------------------ forgotPassword
     @Override
     @Transactional
     public void forgotPassword(ForgotPasswordRequest request) {
+        // Silently ignore unknown emails to prevent user enumeration
         userRepository.findByEmail(request.getEmail()).ifPresent(user -> {
             String token = generateSecureToken();
             OtpToken otpToken = OtpToken.of(user.getId(), token, OtpType.PASSWORD_RESET, OTP_TTL_MINUTES);
@@ -317,35 +304,30 @@ public class AuthServiceImpl implements AuthService {
             userCredentialRepository.save(credential);
         });
 
+        // Revoke all refresh tokens so other sessions are invalidated
         refreshTokenRepository.revokeAllByUserId(user.getId());
         log.info("[Auth] Password reset for userId={}", user.getId());
     }
 
-    // ------------------------------------------------------------------ getMe
     @Override
     @Transactional(readOnly = true)
     public MeResponse getMe(UUID userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new AppException(AuthErrorCode.USER_NOT_FOUND, "Người dùng không tồn tại"));
-
         UserProfile profile = userProfileRepository.findById(userId).orElse(null);
         List<String> roles = user.getUserRoles().stream()
                 .map(ur -> ur.getRole().getName())
                 .toList();
         List<String> capabilities = capabilityRepository.findCapabilityNamesByUserId(userId);
 
-        String firstName = profile != null ? profile.getFirstName() : null;
-        String lastName = profile != null ? profile.getLastName() : null;
-        String fullName = joinName(firstName, lastName);
-
         return MeResponse.builder()
                 .userId(user.getId())
                 .email(user.getEmail())
                 .emailVerified(user.getEmailVerified())
                 .status(user.getStatus())
-                .firstName(firstName)
-                .lastName(lastName)
-                .fullName(fullName)
+                .firstName(profile != null ? profile.getFirstName() : null)
+                .lastName(profile != null ? profile.getLastName() : null)
+                .fullName(profile != null ? profile.getDisplayName() : null)
                 .headline(profile != null ? profile.getHeadline() : null)
                 .avatarUrl(null)
                 .roles(roles)
@@ -354,43 +336,35 @@ public class AuthServiceImpl implements AuthService {
                 .build();
     }
 
-    // ------------------------------------------------------------------ changePassword
     @Override
     @Transactional
     public void changePassword(UUID userId, ChangePasswordRequest request, String currentRefreshToken) {
         UserCredential credential = userCredentialRepository.findByUserId(userId)
                 .orElseThrow(() -> new AppException(AuthErrorCode.USER_NOT_FOUND, "Người dùng không tồn tại"));
-
         if (!passwordEncoder.matches(request.getCurrentPassword(), credential.getPasswordHash())) {
-            throw new AppException(AuthErrorCode.INVALID_CURRENT_PASSWORD,
-                    "Mật khẩu hiện tại không đúng");
-        }
-
-        if (passwordEncoder.matches(request.getNewPassword(), credential.getPasswordHash())) {
-            throw new AppException(AuthErrorCode.INVALID_CURRENT_PASSWORD,
-                    "Mật khẩu mới phải khác mật khẩu hiện tại");
+            throw new AppException(AuthErrorCode.INVALID_CURRENT_PASSWORD, "Mật khẩu hiện tại không chính xác");
         }
 
         credential.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
         credential.setUpdatedAt(Instant.now());
         userCredentialRepository.save(credential);
 
-        // Thu hồi mọi phiên khác (giữ lại phiên hiện tại nếu có).
-        List<RefreshToken> active = refreshTokenRepository.findActiveSessionsByUserId(userId, Instant.now());
-        for (RefreshToken rt : active) {
-            if (currentRefreshToken != null && currentRefreshToken.equals(rt.getToken())) {
+        Instant now = Instant.now();
+        UUID currentSessionId = resolveCurrentSessionId(userId, currentRefreshToken);
+        List<RefreshToken> sessions = refreshTokenRepository.findActiveSessionsByUserId(userId, now);
+        for (RefreshToken session : sessions) {
+            if (currentSessionId != null && currentSessionId.equals(session.getId())) {
                 continue;
             }
-            rt.setRevoked(true);
-            refreshTokenRepository.save(rt);
+            session.setRevoked(true);
         }
-        log.info("[Auth] Password changed for userId={}, kept current session", userId);
+        refreshTokenRepository.saveAll(sessions);
     }
 
-    // ------------------------------------------------------------------ listSessions
     @Override
     @Transactional(readOnly = true)
     public List<SessionResponse> listSessions(UUID userId, String currentRefreshToken) {
+        UUID currentSessionId = resolveCurrentSessionId(userId, currentRefreshToken);
         return refreshTokenRepository.findActiveSessionsByUserId(userId, Instant.now()).stream()
                 .map(rt -> SessionResponse.builder()
                         .id(rt.getId())
@@ -400,33 +374,27 @@ public class AuthServiceImpl implements AuthService {
                         .createdAt(rt.getCreatedAt())
                         .lastUsedAt(rt.getLastUsedAt())
                         .expiresAt(rt.getExpiresAt())
-                        .current(currentRefreshToken != null && currentRefreshToken.equals(rt.getToken()))
+                        .current(currentSessionId != null && currentSessionId.equals(rt.getId()))
                         .build())
                 .toList();
     }
 
-    // ------------------------------------------------------------------ revokeSession
     @Override
     @Transactional
     public void revokeSession(UUID userId, UUID sessionId) {
-        RefreshToken rt = refreshTokenRepository.findById(sessionId)
-                .orElseThrow(() -> new AppException(AuthErrorCode.SESSION_NOT_FOUND,
-                        "Phiên đăng nhập không tồn tại"));
-        if (!rt.getUserId().equals(userId)) {
-            throw new AppException(AuthErrorCode.ACCESS_DENIED,
-                    "Không thể thao tác trên phiên của người khác");
+        RefreshToken session = refreshTokenRepository.findById(sessionId)
+                .orElseThrow(() -> new AppException(AuthErrorCode.SESSION_NOT_FOUND, "Phiên đăng nhập không tồn tại"));
+        if (!userId.equals(session.getUserId())) {
+            throw new AppException(AuthErrorCode.ACCESS_DENIED, "Bạn không có quyền thu hồi phiên này");
         }
-        rt.setRevoked(true);
-        refreshTokenRepository.save(rt);
-        log.info("[Auth] Session {} revoked by owner userId={}", sessionId, userId);
+        session.setRevoked(true);
+        refreshTokenRepository.save(session);
     }
 
-    // ------------------------------------------------------------------ revokeAllSessions
     @Override
     @Transactional
     public void revokeAllSessions(UUID userId) {
         refreshTokenRepository.revokeAllByUserId(userId);
-        log.info("[Auth] All sessions revoked for userId={}", userId);
     }
 
     // ------------------------------------------------------------------ helpers
@@ -441,7 +409,8 @@ public class AuthServiceImpl implements AuthService {
                 jwtService.getRefreshTokenExpiry(),
                 ipAddress,
                 userAgent,
-                parseDeviceInfo(userAgent));
+                toDeviceInfo(userAgent)
+        );
         refreshTokenRepository.save(refreshToken);
 
         return AuthResponse.builder()
@@ -487,32 +456,22 @@ public class AuthServiceImpl implements AuthService {
         return pageUrl + sep + "token=" + enc;
     }
 
-    /** Quick-and-dirty User-Agent parsing into a short human-readable label. */
-    private String parseDeviceInfo(String userAgent) {
-        if (userAgent == null || userAgent.isBlank()) {
-            return "Unknown device";
+    private UUID resolveCurrentSessionId(UUID userId, String currentRefreshToken) {
+        if (currentRefreshToken == null || currentRefreshToken.isBlank()) {
+            return null;
         }
-        String ua = userAgent.toLowerCase();
-        String os = "Unknown OS";
-        if (ua.contains("windows")) os = "Windows";
-        else if (ua.contains("mac os") || ua.contains("macintosh")) os = "macOS";
-        else if (ua.contains("android")) os = "Android";
-        else if (ua.contains("iphone") || ua.contains("ipad") || ua.contains("ios")) os = "iOS";
-        else if (ua.contains("linux")) os = "Linux";
-
-        String browser = "Unknown browser";
-        if (ua.contains("edg/")) browser = "Edge";
-        else if (ua.contains("chrome") && !ua.contains("edg/")) browser = "Chrome";
-        else if (ua.contains("firefox")) browser = "Firefox";
-        else if (ua.contains("safari") && !ua.contains("chrome")) browser = "Safari";
-
-        return browser + " on " + os;
+        return refreshTokenRepository.findByTokenAndRevokedFalse(currentRefreshToken.trim())
+                .filter(rt -> userId.equals(rt.getUserId()))
+                .map(RefreshToken::getId)
+                .orElse(null);
     }
 
-    private String joinName(String first, String last) {
-        String f = first != null ? first.trim() : "";
-        String l = last != null ? last.trim() : "";
-        String joined = (l + " " + f).trim();
-        return joined.isEmpty() ? null : joined;
+    private String toDeviceInfo(String userAgent) {
+        if (userAgent == null || userAgent.isBlank()) {
+            return null;
+        }
+        String compact = userAgent.replaceAll("\\s+", " ").trim();
+        return compact.length() > 255 ? compact.substring(0, 255) : compact;
     }
 }
+

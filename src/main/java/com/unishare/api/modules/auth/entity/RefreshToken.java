@@ -8,14 +8,11 @@ import lombok.Setter;
 import java.time.Instant;
 import java.util.UUID;
 
-/**
- * Refresh token = 1 phiên đăng nhập. Mỗi lần refresh sẽ sinh token mới và
- * set {@code replacedById} của token cũ → cho phép reuse-detection:
- * nếu token đã bị replace mà vẫn được gửi lên, coi là bị đánh cắp → revoke
- * toàn bộ phiên của user.
- */
 @Entity
-@Table(name = "refresh_tokens")
+@Table(name = "refresh_tokens", indexes = {
+        @Index(name = "idx_refresh_tokens_user", columnList = "user_id"),
+        @Index(name = "idx_refresh_tokens_token", columnList = "token", unique = true)
+})
 @Getter
 @Setter
 @NoArgsConstructor
@@ -39,15 +36,15 @@ public class RefreshToken {
     @Column(name = "created_at")
     private Instant createdAt = Instant.now();
 
-    /** Lần cuối token này được dùng để refresh (hoặc được cấp phát). */
+    /** Thời điểm sử dụng gần nhất (mỗi lần refresh hoặc list session cập nhật). */
     @Column(name = "last_used_at")
     private Instant lastUsedAt = Instant.now();
 
-    /** ID của refresh token mới thay thế token này sau rotation. */
+    /** ID của token mới thay thế khi rotation — dùng cho reuse-detection. */
     @Column(name = "replaced_by_id")
     private UUID replacedById;
 
-    /** Thông tin thiết bị lúc cấp phát (UA parse thô). */
+    /** Thông tin thiết bị ngắn gọn (Browser + OS) cho UI quản lý phiên. */
     @Column(name = "device_info", length = 255)
     private String deviceInfo;
 
@@ -78,6 +75,7 @@ public class RefreshToken {
         return Instant.now().isAfter(expiresAt);
     }
 
+    /** Đang còn hiệu lực dùng được: chưa revoke, chưa hết hạn, chưa bị rotate. */
     public boolean isActive() {
         return !Boolean.TRUE.equals(revoked) && !isExpired() && replacedById == null;
     }

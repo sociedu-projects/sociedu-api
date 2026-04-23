@@ -8,6 +8,11 @@ import com.unishare.api.modules.auth.dto.response.SessionResponse;
 import java.util.List;
 import java.util.UUID;
 
+/**
+ * API chính cho module Auth. Các method đọc session (list/revoke) và đổi mật khẩu cần
+ * truyền {@code currentRefreshToken} để đánh dấu "phiên hiện tại" và tránh bị tự khoá
+ * khi change-password.
+ */
 public interface AuthService {
 
     AuthResponse register(RegisterRequest request);
@@ -26,18 +31,13 @@ public interface AuthService {
 
     void resetPassword(ResetPasswordRequest request);
 
-    /** Current authenticated user: profile summary + roles + capabilities. */
     MeResponse getMe(UUID userId);
 
-    /** Change password (requires old password), revokes all other sessions. */
     void changePassword(UUID userId, ChangePasswordRequest request, String currentRefreshToken);
 
-    /** List active sessions (refresh tokens) of a user. */
     List<SessionResponse> listSessions(UUID userId, String currentRefreshToken);
 
-    /** Revoke a single session by id (must belong to the user). */
     void revokeSession(UUID userId, UUID sessionId);
 
-    /** Revoke all sessions of the user. */
     void revokeAllSessions(UUID userId);
 }

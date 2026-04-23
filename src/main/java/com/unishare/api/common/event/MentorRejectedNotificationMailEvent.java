@@ -1,0 +1,8 @@
+package com.unishare.api.common.event;
+
+import java.util.UUID;
+
+/** Email notification - mentor request rejected, with reason. */
+public record MentorRejectedNotificationMailEvent(String toEmail,
+                                                  UUID requestId,
+                                                  String reason) implements DomainEvent {}
