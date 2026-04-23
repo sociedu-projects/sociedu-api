@@ -8,6 +8,8 @@ import com.unishare.api.common.event.EmailVerificationMailEvent;
 import com.unishare.api.common.event.PasswordResetMailEvent;
 import com.unishare.api.modules.auth.dto.request.*;
 import com.unishare.api.modules.auth.dto.response.AuthResponse;
+import com.unishare.api.modules.auth.dto.response.MeResponse;
+import com.unishare.api.modules.auth.dto.response.SessionResponse;
 import com.unishare.api.modules.auth.exception.AuthErrorCode;
 import com.unishare.api.infrastructure.security.JwtService;
 import com.unishare.api.modules.auth.entity.*;
@@ -28,6 +30,7 @@ import java.security.SecureRandom;
 import java.time.Instant;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.UUID;
 
 @Slf4j
 @Service
@@ -49,6 +52,7 @@ public class AuthServiceImpl implements AuthService {
     private final RoleRepository roleRepository;
     private final RefreshTokenRepository refreshTokenRepository;
     private final OtpTokenRepository otpTokenRepository;
+    private final CapabilityRepository capabilityRepository;
     private final JwtService jwtService;
     private final PasswordEncoder passwordEncoder;
     private final DomainEventPublisher eventPublisher;
@@ -97,7 +101,7 @@ public class AuthServiceImpl implements AuthService {
     // ------------------------------------------------------------------ login
     @Override
     @Transactional
-    public AuthResponse login(LoginRequest request) {
+    public AuthResponse login(LoginRequest request, String ipAddress, String userAgent) {
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new AppException(AuthErrorCode.INVALID_CREDENTIALS,
                         "Email hoặc mật khẩu không đúng"));
@@ -127,13 +131,13 @@ public class AuthServiceImpl implements AuthService {
         UserProfile profile = userProfileRepository.findById(user.getId()).orElse(null);
 
         log.info("[Auth] User logged in: {}", user.getEmail());
-        return buildAuthResponse(user, roles, profile);
+        return buildAuthResponse(user, roles, profile, ipAddress, userAgent);
     }
 
     // ------------------------------------------------------------------ refreshToken
     @Override
     @Transactional
-    public AuthResponse refreshToken(RefreshTokenRequest request) {
+    public AuthResponse refreshToken(RefreshTokenRequest request, String ipAddress, String userAgent) {
         RefreshToken stored = refreshTokenRepository
                 .findByTokenAndRevokedFalse(request.getRefreshToken())
                 .orElseThrow(() -> new AppException(AuthErrorCode.INVALID_TOKEN, "Refresh token không hợp lệ"));
@@ -165,6 +169,16 @@ public class AuthServiceImpl implements AuthService {
                 .toList();
 
         UserProfile profile = userProfileRepository.findById(user.getId()).orElse(null);
+
+        stored.setLastUsedAt(Instant.now());
+        if (ipAddress != null && !ipAddress.isBlank()) {
+            stored.setIpAddress(ipAddress.trim());
+        }
+        if (userAgent != null && !userAgent.isBlank()) {
+            stored.setUserAgent(userAgent.trim());
+            stored.setDeviceInfo(toDeviceInfo(userAgent));
+        }
+        refreshTokenRepository.save(stored);
 
         String newAccessToken = jwtService.generateAccessToken(user.getId(), roles);
 
@@ -238,7 +252,7 @@ public class AuthServiceImpl implements AuthService {
         if (Boolean.TRUE.equals(user.getEmailVerified())) {
             otp.setUsed(true);
             otpTokenRepository.save(otp);
-            return buildAuthResponse(user, roles, profile);
+            return buildAuthResponse(user, roles, profile, null, null);
         }
 
         otp.setUsed(true);
@@ -248,7 +262,7 @@ public class AuthServiceImpl implements AuthService {
         user.setStatus(UserStatuses.ACTIVE);
         userRepository.save(user);
         log.info("[Auth] Email verified for userId={}", user.getId());
-        return buildAuthResponse(user, roles, profile);
+        return buildAuthResponse(user, roles, profile, null, null);
     }
 
     // ------------------------------------------------------------------ forgotPassword
@@ -295,13 +309,108 @@ public class AuthServiceImpl implements AuthService {
         log.info("[Auth] Password reset for userId={}", user.getId());
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public MeResponse getMe(UUID userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new AppException(AuthErrorCode.USER_NOT_FOUND, "Người dùng không tồn tại"));
+        UserProfile profile = userProfileRepository.findById(userId).orElse(null);
+        List<String> roles = user.getUserRoles().stream()
+                .map(ur -> ur.getRole().getName())
+                .toList();
+        List<String> capabilities = capabilityRepository.findCapabilityNamesByUserId(userId);
+
+        return MeResponse.builder()
+                .userId(user.getId())
+                .email(user.getEmail())
+                .emailVerified(user.getEmailVerified())
+                .status(user.getStatus())
+                .firstName(profile != null ? profile.getFirstName() : null)
+                .lastName(profile != null ? profile.getLastName() : null)
+                .fullName(profile != null ? profile.getDisplayName() : null)
+                .headline(profile != null ? profile.getHeadline() : null)
+                .avatarUrl(null)
+                .roles(roles)
+                .capabilities(capabilities)
+                .createdAt(user.getCreatedAt())
+                .build();
+    }
+
+    @Override
+    @Transactional
+    public void changePassword(UUID userId, ChangePasswordRequest request, String currentRefreshToken) {
+        UserCredential credential = userCredentialRepository.findByUserId(userId)
+                .orElseThrow(() -> new AppException(AuthErrorCode.USER_NOT_FOUND, "Người dùng không tồn tại"));
+        if (!passwordEncoder.matches(request.getCurrentPassword(), credential.getPasswordHash())) {
+            throw new AppException(AuthErrorCode.INVALID_CURRENT_PASSWORD, "Mật khẩu hiện tại không chính xác");
+        }
+
+        credential.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
+        credential.setUpdatedAt(Instant.now());
+        userCredentialRepository.save(credential);
+
+        Instant now = Instant.now();
+        UUID currentSessionId = resolveCurrentSessionId(userId, currentRefreshToken);
+        List<RefreshToken> sessions = refreshTokenRepository.findActiveSessionsByUserId(userId, now);
+        for (RefreshToken session : sessions) {
+            if (currentSessionId != null && currentSessionId.equals(session.getId())) {
+                continue;
+            }
+            session.setRevoked(true);
+        }
+        refreshTokenRepository.saveAll(sessions);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<SessionResponse> listSessions(UUID userId, String currentRefreshToken) {
+        UUID currentSessionId = resolveCurrentSessionId(userId, currentRefreshToken);
+        return refreshTokenRepository.findActiveSessionsByUserId(userId, Instant.now()).stream()
+                .map(rt -> SessionResponse.builder()
+                        .id(rt.getId())
+                        .deviceInfo(rt.getDeviceInfo())
+                        .ipAddress(rt.getIpAddress())
+                        .userAgent(rt.getUserAgent())
+                        .createdAt(rt.getCreatedAt())
+                        .lastUsedAt(rt.getLastUsedAt())
+                        .expiresAt(rt.getExpiresAt())
+                        .current(currentSessionId != null && currentSessionId.equals(rt.getId()))
+                        .build())
+                .toList();
+    }
+
+    @Override
+    @Transactional
+    public void revokeSession(UUID userId, UUID sessionId) {
+        RefreshToken session = refreshTokenRepository.findById(sessionId)
+                .orElseThrow(() -> new AppException(AuthErrorCode.SESSION_NOT_FOUND, "Phiên đăng nhập không tồn tại"));
+        if (!userId.equals(session.getUserId())) {
+            throw new AppException(AuthErrorCode.ACCESS_DENIED, "Bạn không có quyền thu hồi phiên này");
+        }
+        session.setRevoked(true);
+        refreshTokenRepository.save(session);
+    }
+
+    @Override
+    @Transactional
+    public void revokeAllSessions(UUID userId) {
+        refreshTokenRepository.revokeAllByUserId(userId);
+    }
+
     // ------------------------------------------------------------------ helpers
-    private AuthResponse buildAuthResponse(User user, List<String> roles, UserProfile profile) {
+    private AuthResponse buildAuthResponse(User user, List<String> roles, UserProfile profile,
+                                           String ipAddress, String userAgent) {
         String accessToken = jwtService.generateAccessToken(user.getId(), roles);
         String rawRefreshToken = jwtService.generateRefreshToken();
 
-        RefreshToken refreshToken = RefreshToken.of(user.getId(), rawRefreshToken,
-                jwtService.getRefreshTokenExpiry());
+        RefreshToken refreshToken = RefreshToken.of(
+                user.getId(),
+                rawRefreshToken,
+                jwtService.getRefreshTokenExpiry(),
+                ipAddress,
+                userAgent,
+                toDeviceInfo(userAgent)
+        );
         refreshTokenRepository.save(refreshToken);
 
         return AuthResponse.builder()
@@ -345,6 +454,24 @@ public class AuthServiceImpl implements AuthService {
         String enc = URLEncoder.encode(token, StandardCharsets.UTF_8);
         String sep = pageUrl.contains("?") ? "&" : "?";
         return pageUrl + sep + "token=" + enc;
+    }
+
+    private UUID resolveCurrentSessionId(UUID userId, String currentRefreshToken) {
+        if (currentRefreshToken == null || currentRefreshToken.isBlank()) {
+            return null;
+        }
+        return refreshTokenRepository.findByTokenAndRevokedFalse(currentRefreshToken.trim())
+                .filter(rt -> userId.equals(rt.getUserId()))
+                .map(RefreshToken::getId)
+                .orElse(null);
+    }
+
+    private String toDeviceInfo(String userAgent) {
+        if (userAgent == null || userAgent.isBlank()) {
+            return null;
+        }
+        String compact = userAgent.replaceAll("\\s+", " ").trim();
+        return compact.length() > 255 ? compact.substring(0, 255) : compact;
     }
 }
 
