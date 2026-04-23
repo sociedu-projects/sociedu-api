@@ -14,6 +14,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -109,6 +110,20 @@ public class GlobalExceptionHandler {
                 .withErrors(errors)
                 .withMessage(reason);
         return ResponseEntity.status(status).body(body);
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ApiResponse<?>> handleTypeMismatch(MethodArgumentTypeMismatchException e) {
+        log.debug("Type mismatch for parameter '{}': {}", e.getName(), e.getMessage());
+        Map<String, Object> errors = new HashMap<>();
+        errors.put("type", CommonErrorCode.BAD_REQUEST.getType());
+        errors.put("parameter", e.getName());
+        ApiResponse<?> body = ApiResponse.<Void>build()
+                .withHttpStatus(HttpStatus.BAD_REQUEST)
+                .withCode(CommonErrorCode.BAD_REQUEST.getCode())
+                .withErrors(errors)
+                .withMessage("Tham số '" + e.getName() + "' không đúng định dạng.");
+        return ResponseEntity.badRequest().body(body);
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
