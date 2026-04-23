@@ -7,6 +7,11 @@ import com.unishare.api.modules.auth.dto.request.*;
 import com.unishare.api.modules.auth.dto.response.AuthResponse;
 import com.unishare.api.modules.auth.dto.response.MeResponse;
 import com.unishare.api.modules.auth.dto.response.SessionResponse;
+<<<<<<< HEAD
+=======
+import com.unishare.api.config.OpenApiConfig;
+import com.unishare.api.infrastructure.security.CustomUserPrincipal;
+>>>>>>> main
 import com.unishare.api.modules.auth.service.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -33,7 +38,6 @@ public class AuthController {
 
     private final AuthService authService;
 
-    /** POST /api/v1/auth/register — Đăng ký tài khoản mới. */
     @Operation(summary = "Đăng ký")
     @PostMapping("/register")
     public ResponseEntity<ApiResponse<AuthResponse>> register(
@@ -46,7 +50,6 @@ public class AuthController {
                         .withMessage("Đăng ký thành công. Vui lòng kiểm tra email để xác minh tài khoản."));
     }
 
-    /** POST /api/v1/auth/login — Đăng nhập. */
     @Operation(summary = "Đăng nhập")
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<AuthResponse>> login(
@@ -70,7 +73,6 @@ public class AuthController {
         return ResponseEntity.ok(ApiResponse.<AuthResponse>build().withData(data));
     }
 
-    /** POST /api/v1/auth/logout — Đăng xuất, revoke Refresh Token. */
     @Operation(summary = "Đăng xuất")
     @SecurityRequirement(name = OpenApiConfig.BEARER_JWT)
     @PreAuthorize("isAuthenticated()")
@@ -101,7 +103,6 @@ public class AuthController {
                 .withMessage("Nếu email tồn tại và chưa xác minh, email chứa liên kết đã được gửi."));
     }
 
-    /** POST /api/v1/auth/forgot-password — Gửi email chứa liên kết đặt lại mật khẩu. */
     @Operation(summary = "Quên mật khẩu")
     @PostMapping("/forgot-password")
     public ResponseEntity<ApiResponse<Void>> forgotPassword(
@@ -111,7 +112,6 @@ public class AuthController {
                 .withMessage("Nếu email tồn tại, liên kết đặt lại mật khẩu đã được gửi."));
     }
 
-    /** POST /api/v1/auth/reset-password — Đặt lại mật khẩu bằng token từ liên kết trong mail. */
     @Operation(summary = "Đặt lại mật khẩu")
     @PostMapping("/reset-password")
     public ResponseEntity<ApiResponse<Void>> resetPassword(
@@ -163,18 +163,29 @@ public class AuthController {
     @DeleteMapping("/sessions/{id}")
     public ResponseEntity<ApiResponse<Void>> revokeSession(
             @AuthenticationPrincipal CustomUserPrincipal principal,
+<<<<<<< HEAD
             @PathVariable("id") UUID sessionId) {
         authService.revokeSession(principal.getUserId(), sessionId);
         return ResponseEntity.ok(ApiResponse.<Void>build().withMessage("Đã thu hồi phiên đăng nhập."));
     }
 
     /** POST /api/v1/auth/sessions/revoke-all — Đăng xuất khỏi toàn bộ thiết bị. */
+=======
+            @PathVariable UUID id) {
+        UUID userId = principal.getUserId();
+        authService.revokeSession(userId, id);
+        return ResponseEntity.ok(ApiResponse.<Void>build().withMessage("Đã thu hồi phiên đăng nhập."));
+    }
+
+    /** POST /api/v1/auth/sessions/revoke-all — đăng xuất khỏi mọi thiết bị. */
+>>>>>>> main
     @Operation(summary = "Đăng xuất khỏi mọi thiết bị")
     @SecurityRequirement(name = OpenApiConfig.BEARER_JWT)
     @PreAuthorize("isAuthenticated()")
     @PostMapping("/sessions/revoke-all")
     public ResponseEntity<ApiResponse<Void>> revokeAllSessions(
             @AuthenticationPrincipal CustomUserPrincipal principal) {
+<<<<<<< HEAD
         authService.revokeAllSessions(principal.getUserId());
         return ResponseEntity.ok(ApiResponse.<Void>build()
                 .withMessage("Đã đăng xuất khỏi mọi thiết bị."));
@@ -188,6 +199,23 @@ public class AuthController {
         }
         String real = request.getHeader("X-Real-IP");
         if (real != null && !real.isBlank()) return real.trim();
+=======
+        UUID userId = principal.getUserId();
+        authService.revokeAllSessions(userId);
+        return ResponseEntity.ok(ApiResponse.<Void>build().withMessage("Đã thu hồi tất cả phiên đăng nhập."));
+    }
+
+    // ---------------------------------------------------------------- helpers
+    private static String clientIp(HttpServletRequest request) {
+        String forwarded = request.getHeader("X-Forwarded-For");
+        if (forwarded != null && !forwarded.isBlank()) {
+            return forwarded.split(",")[0].trim();
+        }
+        String real = request.getHeader("X-Real-IP");
+        if (real != null && !real.isBlank()) {
+            return real.trim();
+        }
+>>>>>>> main
         return request.getRemoteAddr();
     }
 }
