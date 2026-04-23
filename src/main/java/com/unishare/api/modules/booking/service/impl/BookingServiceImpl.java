@@ -18,8 +18,7 @@ import com.unishare.api.modules.booking.service.BookingService;
 import com.unishare.api.modules.file.service.FileService;
 import com.unishare.api.modules.order.dto.OrderSnapshot;
 import com.unishare.api.modules.order.service.OrderService;
-import com.unishare.api.modules.service.entity.PackageCurriculum;
-import com.unishare.api.modules.service.repository.PackageCurriculumRepository;
+import com.unishare.api.modules.service.dto.PackageCurriculumSeedItem;
 import com.unishare.api.modules.service.service.CatalogReadService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -40,7 +39,6 @@ public class BookingServiceImpl implements BookingService {
     private final BookingSessionEvidenceRepository evidenceRepository;
     private final OrderService orderService;
     private final CatalogReadService catalogReadService;
-    private final PackageCurriculumRepository packageCurriculumRepository;
     private final FileService fileService;
     private final DomainEventPublisher eventPublisher;
 
@@ -67,13 +65,13 @@ public class BookingServiceImpl implements BookingService {
     }
 
     private void seedSessions(UUID bookingId, UUID versionId) {
-        List<PackageCurriculum> rows = packageCurriculumRepository.findByPackageVersionIdOrderByOrderIndexAsc(versionId);
+        List<PackageCurriculumSeedItem> rows = catalogReadService.listCurriculumForVersionOrdered(versionId);
         int i = 0;
-        for (PackageCurriculum c : rows) {
+        for (PackageCurriculumSeedItem c : rows) {
             BookingSession s = new BookingSession();
             s.setBookingId(bookingId);
-            s.setCurriculumId(c.getId());
-            s.setTitle(c.getTitle());
+            s.setCurriculumId(c.id());
+            s.setTitle(c.title());
             s.setScheduledAt(Instant.now().plus(Duration.ofDays(i + 1L)));
             s.setStatus(SessionStatuses.SCHEDULED);
             sessionRepository.save(s);

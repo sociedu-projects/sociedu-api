@@ -11,7 +11,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -52,6 +54,31 @@ public class UserServiceImpl implements UserService {
         userMapper.updateEntity(profile, request);
         UserProfile savedProfile = profileRepository.save(profile);
         return userMapper.toResponse(savedProfile);
+    }
+
+    @Override
+    @Transactional
+    public void createProfileForNewUser(UUID userId, String firstName, String lastName) {
+        if (profileRepository.existsById(userId)) {
+            return;
+        }
+        UserProfile profile = new UserProfile();
+        profile.setUserId(userId);
+        profile.setFirstName(firstName != null ? firstName.trim() : null);
+        profile.setLastName(lastName != null ? lastName.trim() : null);
+        profileRepository.save(profile);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Map<UUID, UserProfileNames> getProfileNamesByUserIds(Collection<UUID> userIds) {
+        if (userIds == null || userIds.isEmpty()) {
+            return Map.of();
+        }
+        return profileRepository.findAllById(userIds).stream()
+                .collect(Collectors.toMap(
+                        UserProfile::getUserId,
+                        p -> new UserProfileNames(p.getFirstName(), p.getLastName())));
     }
 
     // Education
