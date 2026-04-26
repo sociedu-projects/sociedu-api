@@ -1,0 +1,65 @@
+spring:
+  datasource:
+    url: jdbc:h2:file:./build/localdb/sociedu;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH;NON_KEYWORDS=VALUE
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+  flyway:
+    enabled: false
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+
+  mail:
+    host: localhost
+    port: 1025
+    username: local
+    password: local
+    properties:
+      mail:
+        smtp:
+          auth: false
+          starttls:
+            enable: false
+
+server:
+  port: 9992
+
+app:
+  urls:
+    frontend-base: http://localhost:8081
+    api-public-base: http://localhost:9992/api/v1
+    cors-allowed-origins:
+      - http://localhost:8081
+      - http://127.0.0.1:8081
+      - exp://127.0.0.1:8081
+      - http://localhost:3000
+      - http://localhost:5174
+  jwt:
+    secret: local-dev-secret-local-dev-secret-123456
+    access-token-expiration-ms: 900000
+    refresh-token-expiration-days: 30
+  mail:
+    from: noreply@sociedu.local
+    brand-name: SociEdu Local
+    otp-valid-minutes: 10
+
+cloudinary:
+  cloud-name: local
+  api-key: local
+  api-secret: local
+
+vnpay:
+  tmn-code: LOCALTMN
+  hash-secret: LOCALHASHSECRET
+  url: https://sandbox.vnpayment.vn/paymentv2/vpcpay.html
+  return-url: http://localhost:9992/api/v1/payments/vnpay/return
+
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true

@@ -1,0 +1,63 @@
+> Task :compileJava UP-TO-DATE
+> Task :processResources UP-TO-DATE
+> Task :classes UP-TO-DATE
+> Task :resolveMainClassName UP-TO-DATE
+
+> Task :bootRun
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+
+ :: Spring Boot ::                (v4.0.4)
+
+2026-04-26T14:44:24.284Z  INFO [main] [] com.unishare.api.ApiApplication - Starting ApiApplication using Java 17.0.18 with PID 24900 (D:\Users\Documents\HUCE\Phat_trien_Ung_dung_Da_nen_tang\DoAn\sociedu-api\build\classes\java\main started by ducan in D:\Users\Documents\HUCE\Phat_trien_Ung_dung_Da_nen_tang\DoAn\sociedu-api)
+2026-04-26T14:44:24.293Z  INFO [main] [] com.unishare.api.ApiApplication - No active profile set, falling back to 1 default profile: "local"
+2026-04-26T14:44:25.669Z  INFO [main] [] o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-04-26T14:44:25.903Z  INFO [main] [] o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 217 ms. Found 31 JPA repository interfaces.
+2026-04-26T14:44:27.279Z  INFO [main] [] o.s.boot.tomcat.TomcatWebServer - Tomcat initialized with port 9992 (http)
+2026-04-26T14:44:27.293Z  INFO [main] [] o.apache.catalina.core.StandardService - Starting service [Tomcat]
+2026-04-26T14:44:27.296Z  INFO [main] [] org.apache.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/11.0.18]
+2026-04-26T14:44:27.385Z  INFO [main] [] o.s.b.w.c.s.WebApplicationContextInitializer - Root WebApplicationContext: initialization completed in 3026 ms
+2026-04-26T14:44:27.720Z  INFO [main] [] org.hibernate.orm.jpa - HHH008540: Processing PersistenceUnitInfo [name: default]
+2026-04-26T14:44:27.808Z  INFO [main] [] org.hibernate.orm.core - HHH000001: Hibernate ORM core version 7.2.7.Final
+2026-04-26T14:44:28.492Z  INFO [main] [] o.s.o.j.p.SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-04-26T14:44:28.530Z  INFO [main] [] com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Starting...
+2026-04-26T14:44:28.933Z  INFO [main] [] com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Added connection conn0: url=jdbc:h2:file:./build/localdb/sociedu user=SA
+2026-04-26T14:44:28.936Z  INFO [main] [] com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Start completed.
+2026-04-26T14:44:28.966Z  WARN [main] [] org.hibernate.orm.deprecation - HHH90000025: H2Dialect does not need to be specified explicitly using 'hibernate.dialect' (remove the property setting and it will be selected by default)
+2026-04-26T14:44:29.007Z  INFO [main] [] org.hibernate.orm.connections.pooling - HHH10001005: Database info:
+	Database JDBC URL [jdbc:h2:file:./build/localdb/sociedu]
+	Database driver: H2 JDBC Driver
+	Database dialect: H2Dialect
+	Database version: 2.4.240
+	Default catalog/schema: sociedu/public
+	Autocommit mode: undefined/unknown
+	Isolation level: READ_COMMITTED [default READ_COMMITTED]
+	JDBC fetch size: 100
+	Pool: DataSourceConnectionProvider
+	Minimum pool size: undefined/unknown
+	Maximum pool size: undefined/unknown
+2026-04-26T14:44:31.255Z  INFO [main] [] org.hibernate.orm.core - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-04-26T14:44:31.397Z  INFO [main] [] o.s.o.j.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-04-26T14:44:31.491Z  INFO [main] [] o.s.d.j.r.query.QueryEnhancerFactories - Hibernate is in classpath; If applicable, HQL parser will be used.
+2026-04-26T14:44:33.948Z  WARN [main] [] o.s.b.j.a.JpaBaseConfiguration$JpaWebConfiguration - spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2026-04-26T14:44:34.141Z  INFO [main] [] o.s.s.c.a.a.c.InitializeAuthenticationProviderBeanManagerConfigurer$InitializeAuthenticationProviderManagerConfigurer - Global AuthenticationManager configured with AuthenticationProvider bean with name authenticationProvider
+2026-04-26T14:44:34.141Z  WARN [main] [] o.s.s.c.a.a.c.InitializeUserDetailsBeanManagerConfigurer$InitializeUserDetailsManagerConfigurer - Global AuthenticationManager configured with an AuthenticationProvider bean. UserDetailsService beans will not be used by Spring Security for automatically configuring username/password login. Consider removing the AuthenticationProvider bean. Alternatively, consider using the UserDetailsService in a manually instantiated DaoAuthenticationProvider. If the current configuration is intentional, to turn off this warning, increase the logging level of 'org.springframework.security.config.annotation.authentication.configuration.InitializeUserDetailsBeanManagerConfigurer' to ERROR
+2026-04-26T14:44:35.461Z  INFO [main] [] o.s.b.a.e.web.EndpointLinksResolver - Exposing 1 endpoint beneath base path '/actuator'
+2026-04-26T14:44:35.627Z  INFO [main] [] o.s.boot.tomcat.TomcatWebServer - Tomcat started on port 9992 (http) with context path '/'
+2026-04-26T14:44:35.650Z  INFO [main] [] com.unishare.api.ApiApplication - Started ApiApplication in 12.082 seconds (process running for 12.633)
+2026-04-26T14:44:49.457Z  INFO [http-nio-9992-exec-1] [] o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-04-26T14:44:49.457Z  INFO [http-nio-9992-exec-1] [] o.s.web.servlet.DispatcherServlet - Initializing Servlet 'dispatcherServlet'
+2026-04-26T14:44:49.459Z  INFO [http-nio-9992-exec-1] [] o.s.web.servlet.DispatcherServlet - Completed initialization in 2 ms
+2026-04-26T14:44:49.663Z  WARN [http-nio-9992-exec-2] [9a29c174-9e4b-4243-ac33-d70717eb684a] o.s.d.w.c.SpringDataJackson3Configuration$PageModule$WarningLoggingModifier - Serializing PageImpl instances as-is is not supported, meaning that there is no guarantee about the stability of the resulting JSON structure!
+	For a stable JSON structure, please use Spring Data's PagedModel (globally via @EnableSpringDataWebSupport(pageSerializationMode = VIA_DTO))
+	or Spring HATEOAS and Spring Data's PagedResourcesAssembler as documented in https://docs.spring.io/spring-data/commons/reference/repositories/core-extensions.html#core.web.pageables.
+
+2026-04-26T14:44:49.682Z  INFO [http-nio-9992-exec-1] [17e6992c-8312-43c7-bbf8-7ef4cf276382] c.u.a.i.logging.RequestMdcLoggingFilter - request completed method=GET uri=/api/v1/service-packages status=200 durationMs=218
+2026-04-26T14:44:49.682Z  INFO [http-nio-9992-exec-2] [9a29c174-9e4b-4243-ac33-d70717eb684a] c.u.a.i.logging.RequestMdcLoggingFilter - request completed method=GET uri=/api/v1/mentors status=200 durationMs=218
+2026-04-26T14:44:49.805Z  INFO [http-nio-9992-exec-3] [7dad682e-559b-467a-babd-7d9d3f4c02c3] c.u.a.m.a.service.impl.AuthServiceImpl - [Auth] User logged in: mentee.local@sociedu.test
+2026-04-26T14:44:49.915Z  INFO [http-nio-9992-exec-3] [7dad682e-559b-467a-babd-7d9d3f4c02c3] c.u.a.i.logging.RequestMdcLoggingFilter - request completed method=POST uri=/api/v1/auth/login status=200 durationMs=450

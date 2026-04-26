@@ -1,6 +1,8 @@
 spring:
   config:
     import: optional:file:.env[.properties]
+  profiles:
+    default: local
   application:
     name: api
 
@@ -30,10 +32,10 @@ spring:
     show-sql: false
 
   mail:
-    host: ${MAIL_HOST}
-    port: ${MAIL_PORT}
-    username: ${MAIL_USERNAME}
-    password: ${MAIL_PASSWORD}
+    host: ${MAIL_HOST:localhost}
+    port: ${MAIL_PORT:1025}
+    username: ${MAIL_USERNAME:local}
+    password: ${MAIL_PASSWORD:local}
     properties:
       mail:
         smtp:
@@ -56,8 +58,8 @@ logging:
 
 app:
   urls:
-    frontend-base: ${APP_FRONTEND_BASE_URL}
-    api-public-base: ${APP_PUBLIC_API_BASE_URL}
+    frontend-base: ${APP_FRONTEND_BASE_URL:http://localhost:8081}
+    api-public-base: ${APP_PUBLIC_API_BASE_URL:http://localhost:9992/api/v1}
     cors-allowed-origins:
       - "http://localhost:3000"
       - "http://localhost:3001"
@@ -71,23 +73,23 @@ app:
     email-verification-page-url: ${APP_EMAIL_VERIFICATION_PAGE_URL:${app.urls.frontend-base}${app.auth.email-verification-path}}
     password-reset-page-url: ${APP_PASSWORD_RESET_PAGE_URL:${app.urls.frontend-base}${app.auth.password-reset-path}}
   jwt:
-    secret: ${JWT_SECRET}
-    access-token-expiration-ms: ${JWT_ACCESS_EXPIRATION_MS}      # 15 minutes
-    refresh-token-expiration-days: ${JWT_REFRESH_EXPIRATION_DAYS}
+    secret: ${JWT_SECRET:local-dev-secret-local-dev-secret-123456}
+    access-token-expiration-ms: ${JWT_ACCESS_EXPIRATION_MS:900000}      # 15 minutes
+    refresh-token-expiration-days: ${JWT_REFRESH_EXPIRATION_DAYS:30}
   mail:
-    from: ${MAIL_FROM}
+    from: ${MAIL_FROM:noreply@sociedu.local}
     brand-name: ${APP_MAIL_BRAND_NAME:UniShare}
     otp-valid-minutes: ${APP_MAIL_OTP_VALID_MINUTES:10}
 
 cloudinary:
-  cloud-name: ${CLOUDINARY_NAME}
-  api-key: ${CLOUDINARY_API_KEY}
-  api-secret: ${CLOUDINARY_API_SECRET}
+  cloud-name: ${CLOUDINARY_NAME:local}
+  api-key: ${CLOUDINARY_API_KEY:local}
+  api-secret: ${CLOUDINARY_API_SECRET:local}
 
 vnpay:
-  tmn-code: ${VNP_TMN_CODE}
-  hash-secret: ${VNP_HASH_SECRET}
-  url: ${VNP_URL}
+  tmn-code: ${VNP_TMN_CODE:LOCALTMN}
+  hash-secret: ${VNP_HASH_SECRET:LOCALHASHSECRET}
+  url: ${VNP_URL:https://sandbox.vnpayment.vn/paymentv2/vpcpay.html}
   # Mặc định: callback BE sau thanh toán — nối từ app.urls.api-public-base (chỉnh một chỗ). Ghi đè: VNP_RETURN_URL
   return-url: ${VNP_RETURN_URL:${app.urls.api-public-base}/payments/vnpay/return}
 
