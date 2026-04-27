@@ -10,7 +10,7 @@ import com.unishare.api.modules.service.dto.MentorDto.ServicePackageVersionRespo
 import com.unishare.api.modules.service.dto.request.CreateServicePackageRequest;
 import com.unishare.api.modules.service.dto.request.CreateServicePackageVersionRequest;
 import com.unishare.api.modules.service.dto.request.UpdateServicePackageRequest;
-import com.unishare.api.modules.service.service.MentorService;
+import com.unishare.api.modules.service.service.CatalogService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.security.SecurityRequirements;
@@ -31,6 +31,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.UUID;
 
@@ -41,20 +42,23 @@ import java.util.UUID;
 @SecurityRequirements(value = {})
 public class ServicePackageController {
 
-    private final MentorService mentorService;
+    private final CatalogService catalogService;
 
-    @Operation(summary = "Danh sach goi dich vu dang mo")
+    @Operation(summary = "Danh sach goi dich vu dang mo (loc: mentorId, q ten/mo ta)")
     @GetMapping
-    public ResponseEntity<ApiResponse<Page<ServicePackageResponse>>> getActivePackages(Pageable pageable) {
+    public ResponseEntity<ApiResponse<Page<ServicePackageResponse>>> getActivePackages(
+            @RequestParam(required = false) UUID mentorId,
+            @RequestParam(required = false) String q,
+            Pageable pageable) {
         return ResponseEntity.ok(ApiResponse.<Page<ServicePackageResponse>>build()
-                .withData(mentorService.getActivePackages(pageable)));
+                .withData(catalogService.getActivePackages(mentorId, q, pageable)));
     }
 
     @Operation(summary = "Chi tiet goi dich vu dang mo")
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<ServicePackageResponse>> getActivePackage(@PathVariable UUID id) {
         return ResponseEntity.ok(ApiResponse.<ServicePackageResponse>build()
-                .withData(mentorService.getActivePackage(id)));
+                .withData(catalogService.getActivePackage(id)));
     }
 
     @Operation(summary = "Tao goi dich vu")
@@ -65,7 +69,7 @@ public class ServicePackageController {
             @AuthenticationPrincipal CustomUserPrincipal principal,
             @Valid @RequestBody CreateServicePackageRequest request) {
         return ResponseEntity.ok(ApiResponse.<ServicePackageResponse>build()
-                .withData(mentorService.createPackage(principal.getUserId(), request))
+                .withData(catalogService.createPackage(principal.getUserId(), request))
                 .withMessage("Tao goi dich vu thanh cong"));
     }
 
@@ -78,7 +82,7 @@ public class ServicePackageController {
             @PathVariable UUID id,
             @Valid @RequestBody CreateServicePackageVersionRequest request) {
         return ResponseEntity.ok(ApiResponse.<ServicePackageResponse>build()
-                .withData(mentorService.createPackageVersion(principal.getUserId(), id, request))
+                .withData(catalogService.createPackageVersion(principal.getUserId(), id, request))
                 .withMessage("Tao version goi dich vu thanh cong"));
     }
 
@@ -91,7 +95,7 @@ public class ServicePackageController {
             @PathVariable UUID id,
             Pageable pageable) {
         return ResponseEntity.ok(ApiResponse.<Page<ServicePackageVersionResponse>>build()
-                .withData(mentorService.getPackageVersions(principal.getUserId(), id, pageable)));
+                .withData(catalogService.getPackageVersions(principal.getUserId(), id, pageable)));
     }
 
     @Operation(summary = "Chi tiet version cua goi dich vu")
@@ -103,7 +107,7 @@ public class ServicePackageController {
             @PathVariable UUID id,
             @PathVariable UUID versionId) {
         return ResponseEntity.ok(ApiResponse.<ServicePackageVersionResponse>build()
-                .withData(mentorService.getPackageVersion(principal.getUserId(), id, versionId)));
+                .withData(catalogService.getPackageVersion(principal.getUserId(), id, versionId)));
     }
 
     @Operation(summary = "Them curriculum vao version cua goi dich vu")
@@ -116,7 +120,7 @@ public class ServicePackageController {
             @PathVariable UUID versionId,
             @Valid @RequestBody CurriculumItemRequest request) {
         return ResponseEntity.ok(ApiResponse.<CurriculumItemResponse>build()
-                .withData(mentorService.addCurriculumItem(principal.getUserId(), id, versionId, request))
+                .withData(catalogService.addCurriculumItem(principal.getUserId(), id, versionId, request))
                 .withMessage("Tao curriculum thanh cong"));
     }
 
@@ -130,7 +134,7 @@ public class ServicePackageController {
             @PathVariable UUID versionId,
             Pageable pageable) {
         return ResponseEntity.ok(ApiResponse.<Page<CurriculumItemResponse>>build()
-                .withData(mentorService.listCurriculum(principal.getUserId(), id, versionId, pageable)));
+                .withData(catalogService.listCurriculum(principal.getUserId(), id, versionId, pageable)));
     }
 
     @Operation(summary = "Cap nhat curriculum trong mot version cua goi dich vu")
@@ -144,7 +148,7 @@ public class ServicePackageController {
             @PathVariable UUID curriculumId,
             @Valid @RequestBody CurriculumItemRequest request) {
         return ResponseEntity.ok(ApiResponse.<CurriculumItemResponse>build()
-                .withData(mentorService.updateCurriculumItem(principal.getUserId(), id, versionId, curriculumId, request))
+                .withData(catalogService.updateCurriculumItem(principal.getUserId(), id, versionId, curriculumId, request))
                 .withMessage("Cap nhat curriculum thanh cong"));
     }
 
@@ -157,7 +161,7 @@ public class ServicePackageController {
             @PathVariable UUID id,
             @PathVariable UUID versionId,
             @PathVariable UUID curriculumId) {
-        mentorService.deleteCurriculumItem(principal.getUserId(), id, versionId, curriculumId);
+        catalogService.deleteCurriculumItem(principal.getUserId(), id, versionId, curriculumId);
         return ResponseEntity.ok(ApiResponse.<Void>build()
                 .withMessage("Xoa curriculum thanh cong"));
     }
@@ -171,7 +175,7 @@ public class ServicePackageController {
             @PathVariable UUID id,
             @Valid @RequestBody UpdateServicePackageRequest request) {
         return ResponseEntity.ok(ApiResponse.<ServicePackageResponse>build()
-                .withData(mentorService.updatePackage(principal.getUserId(), id, request))
+                .withData(catalogService.updatePackage(principal.getUserId(), id, request))
                 .withMessage("Cap nhat goi dich vu thanh cong"));
     }
 
@@ -183,7 +187,7 @@ public class ServicePackageController {
             @AuthenticationPrincipal CustomUserPrincipal principal,
             @PathVariable UUID id) {
         return ResponseEntity.ok(ApiResponse.<ServicePackageResponse>build()
-                .withData(mentorService.togglePackage(principal.getUserId(), id))
+                .withData(catalogService.togglePackage(principal.getUserId(), id))
                 .withMessage("Cap nhat trang thai goi dich vu thanh cong"));
     }
 }

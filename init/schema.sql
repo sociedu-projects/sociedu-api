@@ -207,6 +207,28 @@ CREATE TABLE user_projects
 
     created_at  TIMESTAMP        DEFAULT NOW()
 );
+
+-- ==========================================
+-- MENTOR (hồ sơ kênh mentor — PK = user_id)
+-- ==========================================
+CREATE TABLE mentor_profiles
+(
+    user_id               UUID PRIMARY KEY REFERENCES users (id) ON DELETE CASCADE,
+
+    headline              TEXT,
+    expertise             TEXT,
+    base_price            DECIMAL(19, 2),
+
+    rating_avg            REAL             DEFAULT 0,
+    sessions_completed    INT              DEFAULT 0,
+    verification_status   VARCHAR(32)      DEFAULT 'pending',
+
+    created_at            TIMESTAMP        DEFAULT NOW(),
+    updated_at            TIMESTAMP        DEFAULT NOW()
+);
+
+CREATE INDEX idx_mentor_profiles_verification ON mentor_profiles (verification_status);
+
 -- ==========================================
 -- SERVICE
 -- ==========================================

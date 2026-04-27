@@ -1,7 +1,9 @@
 package com.unishare.api.modules.service.controller;
 
-import com.unishare.api.modules.service.dto.MentorDto;
-import com.unishare.api.modules.service.service.MentorService;
+import com.unishare.api.common.constants.MentorVerificationStatuses;
+import com.unishare.api.modules.mentor.controller.MentorController;
+import com.unishare.api.modules.mentor.dto.MentorResponse;
+import com.unishare.api.modules.mentor.service.MentorService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -15,6 +17,7 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -23,25 +26,26 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class MentorControllerPageableTest {
 
     private MockMvc mockMvc;
-    private MentorService mentorService;
+    private MentorService mentorProfileService;
 
     @BeforeEach
     void setUp() {
-        mentorService = Mockito.mock(MentorService.class);
-        mockMvc = MockMvcBuilders.standaloneSetup(new MentorController(mentorService))
+        mentorProfileService = Mockito.mock(MentorService.class);
+        mockMvc = MockMvcBuilders.standaloneSetup(new MentorController(mentorProfileService))
                 .setCustomArgumentResolvers(new PageableHandlerMethodArgumentResolver())
                 .build();
     }
 
     @Test
     void getAllVerifiedMentors_whenPageParamsProvided_shouldReturnPagedData() throws Exception {
-        MentorDto.MentorProfileResponse response = MentorDto.MentorProfileResponse.builder()
+        MentorResponse response = MentorResponse.builder()
                 .userId(UUID.randomUUID())
                 .headline("Career mentor")
                 .verificationStatus("verified")
                 .build();
 
-        when(mentorService.getAllVerifiedMentors(eq(PageRequest.of(1, 5))))
+        when(mentorProfileService.searchMentors(
+                eq(MentorVerificationStatuses.VERIFIED), isNull(), isNull(), isNull(), eq(PageRequest.of(1, 5))))
                 .thenReturn(new PageImpl<>(List.of(response), PageRequest.of(1, 5), 1));
 
         mockMvc.perform(get("/api/v1/mentors")
