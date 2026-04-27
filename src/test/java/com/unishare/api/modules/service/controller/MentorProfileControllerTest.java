@@ -1,7 +1,8 @@
 package com.unishare.api.modules.service.controller;
 
-import com.unishare.api.modules.service.dto.MentorDto;
-import com.unishare.api.modules.service.service.MentorService;
+import com.unishare.api.modules.mentor.controller.MentorController;
+import com.unishare.api.modules.mentor.dto.MentorResponse;
+import com.unishare.api.modules.mentor.service.MentorService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -19,24 +20,24 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class MentorProfileControllerTest {
 
     private MockMvc mockMvc;
-    private MentorService mentorService;
+    private MentorService mentorProfileService;
 
     @BeforeEach
     void setUp() {
-        mentorService = Mockito.mock(MentorService.class);
-        mockMvc = MockMvcBuilders.standaloneSetup(new MentorController(mentorService)).build();
+        mentorProfileService = Mockito.mock(MentorService.class);
+        mockMvc = MockMvcBuilders.standaloneSetup(new MentorController(mentorProfileService)).build();
     }
 
     @Test
     void getMentorProfile_shouldReturnProfileWithoutPackages() throws Exception {
         UUID mentorId = UUID.randomUUID();
-        MentorDto.MentorProfileResponse response = MentorDto.MentorProfileResponse.builder()
+        MentorResponse response = MentorResponse.builder()
                 .userId(mentorId)
                 .headline("Career mentor")
                 .verificationStatus("verified")
                 .build();
 
-        when(mentorService.getMentorProfile(eq(mentorId))).thenReturn(response);
+        when(mentorProfileService.getMentorProfile(eq(mentorId))).thenReturn(response);
 
         mockMvc.perform(get("/api/v1/mentors/{id}", mentorId))
                 .andExpect(status().isOk())

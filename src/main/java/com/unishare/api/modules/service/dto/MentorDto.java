@@ -13,34 +13,6 @@ import java.util.UUID;
 public class MentorDto {
 
     @Data
-    public static class MentorProfileRequest {
-        @NotBlank(message = "Headline không được để trống")
-        private String headline;
-
-        @NotBlank(message = "Expertise không được để trống")
-        private String expertise;
-
-        @NotNull(message = "Base price không được để trống")
-        @DecimalMin(value = "0.0", inclusive = true, message = "Base price phải lớn hơn hoặc bằng 0")
-        private BigDecimal basePrice;
-    }
-
-    @Data
-    @Builder
-    public static class MentorProfileResponse {
-        private UUID userId;
-        /** Tên hiển thị từ {@code user_profiles} (khi có). */
-        private String displayName;
-        private String headline;
-        private String expertise;
-        private BigDecimal basePrice;
-        private Float ratingAvg;
-        private Integer sessionsCompleted;
-        private String verificationStatus;
-        private List<ServicePackageResponse> packages;
-    }
-
-    @Data
     public static class ServicePackageRequest {
         private String name;
         private String description;

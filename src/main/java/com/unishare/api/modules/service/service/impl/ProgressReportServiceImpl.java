@@ -7,7 +7,7 @@ import com.unishare.api.modules.service.dto.response.ProgressReportResponse;
 import com.unishare.api.modules.service.entity.ProgressReport;
 import com.unishare.api.modules.service.entity.ReportStatus;
 import com.unishare.api.modules.service.exception.ProgressReportErrorCode;
-import com.unishare.api.modules.service.repository.MentorProfileRepository;
+import com.unishare.api.modules.mentor.service.MentorService;
 import com.unishare.api.modules.service.repository.ProgressReportRepository;
 import com.unishare.api.modules.service.service.ProgressReportService;
 import com.unishare.api.modules.user.dto.UserProfileResponse;
@@ -18,7 +18,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -26,7 +25,7 @@ import java.util.UUID;
 public class ProgressReportServiceImpl implements ProgressReportService {
 
     private final ProgressReportRepository progressReportRepository;
-    private final MentorProfileRepository mentorProfileRepository;
+    private final MentorService mentorProfileService;
     private final UserService userService;
 
     @Override
@@ -36,7 +35,7 @@ public class ProgressReportServiceImpl implements ProgressReportService {
             throw new AppException(ProgressReportErrorCode.PROGRESS_REPORT_SELF_TARGET_NOT_ALLOWED,
                     "Mentee không thể tạo báo cáo cho chính mình");
         }
-        if (!mentorProfileRepository.existsById(request.getMentorId())) {
+        if (!mentorProfileService.mentorProfileExists(request.getMentorId())) {
             throw new AppException(ProgressReportErrorCode.PROGRESS_REPORT_MENTOR_NOT_FOUND,
                     "Không tìm thấy mentor nhận báo cáo");
         }

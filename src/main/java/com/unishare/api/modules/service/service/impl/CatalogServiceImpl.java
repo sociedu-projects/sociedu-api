@@ -1,21 +1,21 @@
 package com.unishare.api.modules.service.service.impl;
 
 import com.unishare.api.common.dto.AppException;
-import com.unishare.api.common.constants.MentorVerificationStatuses;
-import com.unishare.api.modules.service.exception.ServiceErrorCode;
-import com.unishare.api.modules.service.dto.MentorDto.*;
+import com.unishare.api.modules.service.dto.MentorDto.CurriculumItemRequest;
+import com.unishare.api.modules.service.dto.MentorDto.CurriculumItemResponse;
+import com.unishare.api.modules.service.dto.MentorDto.ServicePackageResponse;
+import com.unishare.api.modules.service.dto.MentorDto.ServicePackageVersionResponse;
 import com.unishare.api.modules.service.dto.request.CreateServicePackageRequest;
 import com.unishare.api.modules.service.dto.request.CreateServicePackageVersionRequest;
 import com.unishare.api.modules.service.dto.request.UpdateServicePackageRequest;
-import com.unishare.api.modules.service.entity.MentorProfile;
 import com.unishare.api.modules.service.entity.PackageCurriculum;
 import com.unishare.api.modules.service.entity.ServicePackage;
 import com.unishare.api.modules.service.entity.ServicePackageVersion;
-import com.unishare.api.modules.service.repository.MentorProfileRepository;
+import com.unishare.api.modules.service.exception.ServiceErrorCode;
 import com.unishare.api.modules.service.repository.PackageCurriculumRepository;
 import com.unishare.api.modules.service.repository.ServicePackageRepository;
 import com.unishare.api.modules.service.repository.ServicePackageVersionRepository;
-import com.unishare.api.modules.service.service.MentorService;
+import com.unishare.api.modules.service.service.CatalogService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -31,58 +31,23 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
-public class MentorServiceImpl implements MentorService {
+public class CatalogServiceImpl implements CatalogService {
 
-    private final MentorProfileRepository mentorProfileRepository;
     private final ServicePackageRepository servicePackageRepository;
     private final ServicePackageVersionRepository servicePackageVersionRepository;
     private final PackageCurriculumRepository packageCurriculumRepository;
 
     @Override
     @Transactional(readOnly = true)
-    public MentorProfileResponse getMentorProfile(UUID mentorId) {
-        MentorProfile profile = mentorProfileRepository.findById(mentorId)
-                .orElseThrow(() -> new AppException(ServiceErrorCode.MENTOR_NOT_FOUND, "Mentor not found"));
-        return mapToMentorProfileOnlyResponse(profile);
-    }
-
-    @Override
-    @Transactional
-    public MentorProfileResponse createOrUpdateProfile(UUID userId, MentorProfileRequest request) {
-        MentorProfile profile = mentorProfileRepository.findById(userId)
-                .orElse(new MentorProfile());
-
-        profile.setUserId(userId);
-        profile.setHeadline(request.getHeadline());
-        profile.setExpertise(request.getExpertise());
-        profile.setBasePrice(request.getBasePrice());
-
-        if (profile.getVerificationStatus() == null) {
-            profile.setVerificationStatus(MentorVerificationStatuses.PENDING);
-        }
-
-        mentorProfileRepository.save(profile);
-        return getMentorProfile(userId);
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public Page<MentorProfileResponse> getAllVerifiedMentors(Pageable pageable) {
-        return mentorProfileRepository.findByVerificationStatus(MentorVerificationStatuses.VERIFIED, pageable)
-                .map(this::mapToMentorProfileOnlyResponse);
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public Page<ServicePackageResponse> getMentorPackages(UUID mentorId, Pageable pageable) {
-        return servicePackageRepository.findByMentorIdAndIsActiveTrue(mentorId, pageable)
+    public Page<ServicePackageResponse> getMentorPackages(UUID mentorId, String keyword, Pageable pageable) {
+        return servicePackageRepository.searchActiveByMentorId(mentorId, normalizeKeyword(keyword), pageable)
                 .map(this::mapToCatalogPackageResponse);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public Page<ServicePackageResponse> getMyPackages(UUID mentorId, Pageable pageable) {
-        return servicePackageRepository.findByMentorId(mentorId, pageable)
+    public Page<ServicePackageResponse> getMyPackages(UUID mentorId, String keyword, Pageable pageable) {
+        return servicePackageRepository.searchByMentorId(mentorId, normalizeKeyword(keyword), pageable)
                 .map(this::mapToPackageResponse);
     }
 
@@ -93,8 +58,8 @@ public class MentorServiceImpl implements MentorService {
     }
 
     @Override
-    public Page<ServicePackageResponse> getActivePackages(Pageable pageable) {
-        return servicePackageRepository.findByIsActiveTrue(pageable)
+    public Page<ServicePackageResponse> getActivePackages(UUID mentorId, String keyword, Pageable pageable) {
+        return servicePackageRepository.searchActivePackages(mentorId, normalizeKeyword(keyword), pageable)
                 .map(this::mapToCatalogPackageResponse);
     }
 
@@ -241,18 +206,6 @@ public class MentorServiceImpl implements MentorService {
                 .build();
     }
 
-    private MentorProfileResponse mapToMentorProfileOnlyResponse(MentorProfile profile) {
-        return MentorProfileResponse.builder()
-                .userId(profile.getUserId())
-                .headline(profile.getHeadline())
-                .expertise(profile.getExpertise())
-                .basePrice(profile.getBasePrice())
-                .ratingAvg(profile.getRatingAvg())
-                .sessionsCompleted(profile.getSessionsCompleted())
-                .verificationStatus(profile.getVerificationStatus())
-                .build();
-    }
-
     private ServicePackageResponse mapToCatalogPackageResponse(ServicePackage pkg) {
         List<ServicePackageVersionResponse> versions = servicePackageVersionRepository.findByPackageId(pkg.getId()).stream()
                 .filter(version -> Boolean.TRUE.equals(version.getIsDefault()))
@@ -322,7 +275,7 @@ public class MentorServiceImpl implements MentorService {
         if (packageCurriculumRepository.existsByPackageVersionIdAndOrderIndexAndIdNot(
                 ver.getId(), request.getOrderIndex(), curriculumId)) {
             throw new AppException(ServiceErrorCode.DUPLICATE_CURRICULUM_ORDER_INDEX,
-                    "Thá»© tá»± curriculum khÃ´ng Ä‘Æ°á»£c trÃ¹ng nhau trong cÃ¹ng má»™t phiÃªn báº£n gÃ³i");
+                    "Order index must be unique within the package version");
         }
 
         curriculum.setTitle(request.getTitle());
@@ -408,6 +361,17 @@ public class MentorServiceImpl implements MentorService {
         curriculum.setOrderIndex(source.getOrderIndex());
         curriculum.setDuration(source.getDuration());
         return curriculum;
+    }
+
+    private static String normalizeKeyword(String raw) {
+        if (raw == null) {
+            return null;
+        }
+        String t = raw.trim();
+        if (t.isEmpty()) {
+            return null;
+        }
+        return t.length() > 100 ? t.substring(0, 100) : t;
     }
 
     private void validateCreatePackageRequest(CreateServicePackageRequest request) {

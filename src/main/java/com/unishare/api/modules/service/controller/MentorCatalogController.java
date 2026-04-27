@@ -5,11 +5,9 @@ import com.unishare.api.config.OpenApiConfig;
 import com.unishare.api.infrastructure.security.CustomUserPrincipal;
 import com.unishare.api.modules.service.dto.MentorDto.CurriculumItemRequest;
 import com.unishare.api.modules.service.dto.MentorDto.CurriculumItemResponse;
-import com.unishare.api.modules.service.dto.MentorDto.MentorProfileRequest;
-import com.unishare.api.modules.service.dto.MentorDto.MentorProfileResponse;
 import com.unishare.api.modules.service.dto.MentorDto.ServicePackageResponse;
 import com.unishare.api.modules.service.dto.request.CreateServicePackageRequest;
-import com.unishare.api.modules.service.service.MentorService;
+import com.unishare.api.modules.service.service.CatalogService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.security.SecurityRequirements;
@@ -26,9 +24,9 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.UUID;
@@ -36,48 +34,33 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/v1/mentors")
 @RequiredArgsConstructor
-@Tag(name = "Mentors & service packages")
-public class MentorController {
+@Tag(name = "Mentor catalog (packages)")
+public class MentorCatalogController {
 
-    private final MentorService mentorService;
+    private final CatalogService catalogService;
 
-    @Operation(summary = "Danh sach mentor da xac minh")
-    @SecurityRequirements(value = {})
-    @GetMapping
-    public ResponseEntity<ApiResponse<Page<MentorProfileResponse>>> getAllVerifiedMentors(Pageable pageable) {
-        return ResponseEntity.ok(ApiResponse.<Page<MentorProfileResponse>>build()
-                .withData(mentorService.getAllVerifiedMentors(pageable)));
-    }
-
-    @Operation(summary = "Chi tiet mentor")
-    @PermitAll
-    @SecurityRequirements(value = {})
-    @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<MentorProfileResponse>> getMentorProfile(@PathVariable UUID id) {
-        return ResponseEntity.ok(ApiResponse.<MentorProfileResponse>build()
-                .withData(mentorService.getMentorProfile(id)));
-    }
-
-    @Operation(summary = "Goi dich vu dang mo cua mentor")
+    @Operation(summary = "Goi dich vu dang mo cua mentor (loc: q ten/mo ta)")
     @PermitAll
     @SecurityRequirements(value = {})
     @GetMapping("/{id}/packages")
     public ResponseEntity<ApiResponse<Page<ServicePackageResponse>>> getMentorPackages(
             @PathVariable UUID id,
+            @RequestParam(required = false) String q,
             Pageable pageable) {
         return ResponseEntity.ok(ApiResponse.<Page<ServicePackageResponse>>build()
-                .withData(mentorService.getMentorPackages(id, pageable)));
+                .withData(catalogService.getMentorPackages(id, q, pageable)));
     }
 
-    @Operation(summary = "Danh sach goi dich vu cua toi")
+    @Operation(summary = "Danh sach goi dich vu cua toi (loc: q ten/mo ta)")
     @SecurityRequirement(name = OpenApiConfig.BEARER_JWT)
     @PreAuthorize("hasRole('MENTOR')")
     @GetMapping("/me/packages")
     public ResponseEntity<ApiResponse<Page<ServicePackageResponse>>> getMyPackages(
             @AuthenticationPrincipal CustomUserPrincipal principal,
+            @RequestParam(required = false) String q,
             Pageable pageable) {
         return ResponseEntity.ok(ApiResponse.<Page<ServicePackageResponse>>build()
-                .withData(mentorService.getMyPackages(principal.getUserId(), pageable)));
+                .withData(catalogService.getMyPackages(principal.getUserId(), q, pageable)));
     }
 
     @Operation(summary = "Chi tiet goi dich vu cua toi")
@@ -88,19 +71,7 @@ public class MentorController {
             @AuthenticationPrincipal CustomUserPrincipal principal,
             @PathVariable UUID pkgId) {
         return ResponseEntity.ok(ApiResponse.<ServicePackageResponse>build()
-                .withData(mentorService.getMyPackage(principal.getUserId(), pkgId)));
-    }
-
-    @Operation(summary = "Cap nhat ho so mentor (me)")
-    @SecurityRequirement(name = OpenApiConfig.BEARER_JWT)
-    @PreAuthorize("hasRole('MENTOR')")
-    @PutMapping("/me")
-    public ResponseEntity<ApiResponse<MentorProfileResponse>> updateMyProfile(
-            @AuthenticationPrincipal CustomUserPrincipal principal,
-            @Valid @RequestBody MentorProfileRequest request) {
-        MentorProfileResponse resp = mentorService.createOrUpdateProfile(principal.getUserId(), request);
-        return ResponseEntity.ok(ApiResponse.<MentorProfileResponse>build()
-                .withData(resp));
+                .withData(catalogService.getMyPackage(principal.getUserId(), pkgId)));
     }
 
     @Operation(summary = "Tao goi dich vu")
@@ -111,7 +82,7 @@ public class MentorController {
             @AuthenticationPrincipal CustomUserPrincipal principal,
             @Valid @RequestBody CreateServicePackageRequest request) {
         return ResponseEntity.ok(ApiResponse.<ServicePackageResponse>build()
-                .withData(mentorService.createPackage(principal.getUserId(), request)));
+                .withData(catalogService.createPackage(principal.getUserId(), request)));
     }
 
     @Operation(summary = "Xoa goi dich vu")
@@ -121,7 +92,7 @@ public class MentorController {
     public ResponseEntity<ApiResponse<Void>> deletePackage(
             @AuthenticationPrincipal CustomUserPrincipal principal,
             @PathVariable UUID pkgId) {
-        mentorService.deletePackage(principal.getUserId(), pkgId);
+        catalogService.deletePackage(principal.getUserId(), pkgId);
         return ResponseEntity.ok(ApiResponse.<Void>build().withMessage("Package deleted"));
     }
 
@@ -135,7 +106,7 @@ public class MentorController {
             @PathVariable UUID verId,
             @Valid @RequestBody CurriculumItemRequest request) {
         return ResponseEntity.ok(ApiResponse.<CurriculumItemResponse>build()
-                .withData(mentorService.addCurriculumItem(principal.getUserId(), pkgId, verId, request)));
+                .withData(catalogService.addCurriculumItem(principal.getUserId(), pkgId, verId, request)));
     }
 
     @Operation(summary = "Liet ke curriculum theo phien ban goi")
@@ -148,7 +119,7 @@ public class MentorController {
             @PathVariable UUID verId,
             Pageable pageable) {
         return ResponseEntity.ok(ApiResponse.<Page<CurriculumItemResponse>>build()
-                .withData(mentorService.listCurriculum(principal.getUserId(), pkgId, verId, pageable)));
+                .withData(catalogService.listCurriculum(principal.getUserId(), pkgId, verId, pageable)));
     }
 
     @Operation(summary = "Xoa muc curriculum")
@@ -158,7 +129,7 @@ public class MentorController {
     public ResponseEntity<ApiResponse<Void>> deleteCurriculum(
             @AuthenticationPrincipal CustomUserPrincipal principal,
             @PathVariable UUID curriculumId) {
-        mentorService.deleteCurriculumItem(principal.getUserId(), curriculumId);
+        catalogService.deleteCurriculumItem(principal.getUserId(), curriculumId);
         return ResponseEntity.ok(ApiResponse.<Void>build().withMessage("Da xoa muc curriculum"));
     }
 }

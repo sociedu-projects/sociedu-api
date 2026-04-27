@@ -1,9 +1,7 @@
 package com.unishare.api.modules.service.service.impl;
 
 import com.unishare.api.common.dto.AppException;
-import com.unishare.api.common.constants.MentorVerificationStatuses;
 import com.unishare.api.modules.service.dto.MentorDto;
-import com.unishare.api.modules.service.entity.MentorProfile;
 import com.unishare.api.modules.service.dto.request.CreateServicePackageRequest;
 import com.unishare.api.modules.service.dto.request.CreateServicePackageVersionRequest;
 import com.unishare.api.modules.service.dto.request.UpdateServicePackageRequest;
@@ -11,10 +9,10 @@ import com.unishare.api.modules.service.entity.PackageCurriculum;
 import com.unishare.api.modules.service.entity.ServicePackage;
 import com.unishare.api.modules.service.entity.ServicePackageVersion;
 import com.unishare.api.modules.service.exception.ServiceErrorCode;
-import com.unishare.api.modules.service.repository.MentorProfileRepository;
 import com.unishare.api.modules.service.repository.PackageCurriculumRepository;
 import com.unishare.api.modules.service.repository.ServicePackageRepository;
 import com.unishare.api.modules.service.repository.ServicePackageVersionRepository;
+import com.unishare.api.modules.service.service.impl.CatalogServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -39,15 +37,15 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-class MentorServiceImplTest {
+class CatalogServiceImplTest {
 
-    @Mock
-    private MentorProfileRepository mentorProfileRepository;
     @Mock
     private ServicePackageRepository servicePackageRepository;
     @Mock
@@ -56,7 +54,7 @@ class MentorServiceImplTest {
     private PackageCurriculumRepository packageCurriculumRepository;
 
     @InjectMocks
-    private MentorServiceImpl mentorService;
+    private CatalogServiceImpl catalogService;
 
     private UUID mentorId;
     private UUID packageId;
@@ -87,7 +85,7 @@ class MentorServiceImplTest {
         when(packageCurriculumRepository.findByPackageVersionIdOrderByOrderIndexAsc(versionId))
                 .thenReturn(savedCurriculums());
 
-        MentorDto.ServicePackageResponse response = mentorService.createPackage(mentorId, request);
+        MentorDto.ServicePackageResponse response = catalogService.createPackage(mentorId, request);
 
         ArgumentCaptor<ServicePackageVersion> versionCaptor = ArgumentCaptor.forClass(ServicePackageVersion.class);
         verify(servicePackageVersionRepository).save(versionCaptor.capture());
@@ -113,7 +111,7 @@ class MentorServiceImplTest {
         CreateServicePackageRequest request = validRequest();
         request.getCurriculums().get(1).setOrderIndex(1);
 
-        AppException exception = assertThrows(AppException.class, () -> mentorService.createPackage(mentorId, request));
+        AppException exception = assertThrows(AppException.class, () -> catalogService.createPackage(mentorId, request));
 
         assertSame(ServiceErrorCode.DUPLICATE_CURRICULUM_ORDER_INDEX, exception.getExceptionCode());
     }
@@ -134,100 +132,13 @@ class MentorServiceImplTest {
         when(packageCurriculumRepository.findByPackageVersionIdOrderByOrderIndexAsc(versionId))
                 .thenReturn(savedCurriculums());
 
-        mentorService.createPackage(mentorId, validRequest());
+        catalogService.createPackage(mentorId, validRequest());
 
         ArgumentCaptor<ServicePackageVersion> versionCaptor = ArgumentCaptor.forClass(ServicePackageVersion.class);
         verify(servicePackageVersionRepository).save(versionCaptor.capture());
         assertNotNull(versionCaptor.getValue());
         assertTrue(versionCaptor.getValue().getIsDefault());
         assertFalse(Boolean.FALSE.equals(versionCaptor.getValue().getIsDefault()));
-    }
-
-    @Test
-    void getAllVerifiedMentors_whenPaged_shouldUseVerifiedStatusAndMapPage() {
-        MentorProfile profile = new MentorProfile();
-        profile.setUserId(mentorId);
-        profile.setHeadline("Career mentor");
-        profile.setExpertise("Product");
-        profile.setVerificationStatus("verified");
-
-        PageRequest pageable = PageRequest.of(0, 5);
-        when(mentorProfileRepository.findByVerificationStatus("verified", pageable))
-                .thenReturn(new PageImpl<>(List.of(profile), pageable, 1));
-
-        Page<MentorDto.MentorProfileResponse> response = mentorService.getAllVerifiedMentors(pageable);
-
-        assertEquals(1, response.getTotalElements());
-        assertEquals(mentorId, response.getContent().get(0).getUserId());
-        assertEquals("verified", response.getContent().get(0).getVerificationStatus());
-        assertEquals(null, response.getContent().get(0).getPackages());
-    }
-
-    @Test
-    void getMentorProfile_shouldReturnProfileOnlyWithoutEmbeddedPackages() {
-        MentorProfile profile = new MentorProfile();
-        profile.setUserId(mentorId);
-        profile.setHeadline("Career mentor");
-        profile.setExpertise("Product");
-        profile.setVerificationStatus("verified");
-
-        when(mentorProfileRepository.findById(mentorId)).thenReturn(java.util.Optional.of(profile));
-
-        MentorDto.MentorProfileResponse response = mentorService.getMentorProfile(mentorId);
-
-        assertEquals(mentorId, response.getUserId());
-        assertEquals("Career mentor", response.getHeadline());
-        assertEquals("verified", response.getVerificationStatus());
-        assertEquals(null, response.getPackages());
-        verify(servicePackageRepository, never()).findByMentorId(mentorId);
-    }
-
-    @Test
-    void createOrUpdateProfile_whenProfileDoesNotExist_shouldCreatePendingProfile() {
-        MentorDto.MentorProfileRequest request = new MentorDto.MentorProfileRequest();
-        request.setHeadline("Career mentor");
-        request.setExpertise("Product");
-        request.setBasePrice(new BigDecimal("100.00"));
-
-        when(mentorProfileRepository.findById(mentorId))
-                .thenReturn(Optional.empty())
-                .thenReturn(Optional.of(savedProfile(MentorVerificationStatuses.PENDING)));
-        when(mentorProfileRepository.save(any(MentorProfile.class))).thenAnswer(invocation -> invocation.getArgument(0));
-
-        MentorDto.MentorProfileResponse response = mentorService.createOrUpdateProfile(mentorId, request);
-
-        ArgumentCaptor<MentorProfile> profileCaptor = ArgumentCaptor.forClass(MentorProfile.class);
-        verify(mentorProfileRepository).save(profileCaptor.capture());
-        assertEquals(mentorId, profileCaptor.getValue().getUserId());
-        assertEquals(MentorVerificationStatuses.PENDING, profileCaptor.getValue().getVerificationStatus());
-        assertEquals("Career mentor", response.getHeadline());
-        assertEquals(MentorVerificationStatuses.PENDING, response.getVerificationStatus());
-    }
-
-    @Test
-    void createOrUpdateProfile_whenProfileExists_shouldPreserveVerificationStatus() {
-        MentorProfile existingProfile = savedProfile(MentorVerificationStatuses.VERIFIED);
-        existingProfile.setHeadline("Old headline");
-        existingProfile.setExpertise("Old expertise");
-
-        MentorDto.MentorProfileRequest request = new MentorDto.MentorProfileRequest();
-        request.setHeadline("New headline");
-        request.setExpertise("New expertise");
-        request.setBasePrice(new BigDecimal("200.00"));
-
-        when(mentorProfileRepository.findById(mentorId))
-                .thenReturn(Optional.of(existingProfile))
-                .thenReturn(Optional.of(savedProfile(MentorVerificationStatuses.VERIFIED)));
-        when(mentorProfileRepository.save(any(MentorProfile.class))).thenAnswer(invocation -> invocation.getArgument(0));
-
-        MentorDto.MentorProfileResponse response = mentorService.createOrUpdateProfile(mentorId, request);
-
-        ArgumentCaptor<MentorProfile> profileCaptor = ArgumentCaptor.forClass(MentorProfile.class);
-        verify(mentorProfileRepository).save(profileCaptor.capture());
-        assertEquals(MentorVerificationStatuses.VERIFIED, profileCaptor.getValue().getVerificationStatus());
-        assertEquals("New headline", profileCaptor.getValue().getHeadline());
-        assertEquals("New expertise", profileCaptor.getValue().getExpertise());
-        assertEquals(MentorVerificationStatuses.VERIFIED, response.getVerificationStatus());
     }
 
     @Test
@@ -240,13 +151,13 @@ class MentorServiceImplTest {
         servicePackage.setIsActive(true);
 
         PageRequest pageable = PageRequest.of(0, 5);
-        when(servicePackageRepository.findByMentorIdAndIsActiveTrue(mentorId, pageable))
+        when(servicePackageRepository.searchActiveByMentorId(eq(mentorId), isNull(), eq(pageable)))
                 .thenReturn(new PageImpl<>(List.of(servicePackage), pageable, 1));
         when(servicePackageVersionRepository.findByPackageId(packageId)).thenReturn(List.of(savedVersion()));
         when(packageCurriculumRepository.findByPackageVersionIdOrderByOrderIndexAsc(versionId))
                 .thenReturn(savedCurriculums());
 
-        Page<MentorDto.ServicePackageResponse> response = mentorService.getMentorPackages(mentorId, pageable);
+        Page<MentorDto.ServicePackageResponse> response = catalogService.getMentorPackages(mentorId, null, pageable);
 
         assertEquals(1, response.getTotalElements());
         assertEquals("Career Planning", response.getContent().get(0).getName());
@@ -273,7 +184,7 @@ class MentorServiceImplTest {
         inactivePackage.setIsActive(false);
 
         PageRequest pageable = PageRequest.of(0, 5);
-        when(servicePackageRepository.findByMentorId(mentorId, pageable))
+        when(servicePackageRepository.searchByMentorId(eq(mentorId), isNull(), eq(pageable)))
                 .thenReturn(new PageImpl<>(List.of(activePackage, inactivePackage), pageable, 2));
         when(servicePackageVersionRepository.findByPackageId(packageId)).thenReturn(List.of(savedVersion()));
         when(packageCurriculumRepository.findByPackageVersionIdOrderByOrderIndexAsc(versionId))
@@ -283,7 +194,7 @@ class MentorServiceImplTest {
         when(packageCurriculumRepository.findByPackageVersionIdOrderByOrderIndexAsc(inactiveVersionId))
                 .thenReturn(List.of());
 
-        Page<MentorDto.ServicePackageResponse> response = mentorService.getMyPackages(mentorId, pageable);
+        Page<MentorDto.ServicePackageResponse> response = catalogService.getMyPackages(mentorId, null, pageable);
 
         assertEquals(2, response.getTotalElements());
         assertEquals(List.of("Career Planning", "CV Review"),
@@ -306,7 +217,7 @@ class MentorServiceImplTest {
         when(packageCurriculumRepository.findByPackageVersionIdOrderByOrderIndexAsc(versionId))
                 .thenReturn(savedCurriculums());
 
-        MentorDto.ServicePackageResponse response = mentorService.getMyPackage(mentorId, packageId);
+        MentorDto.ServicePackageResponse response = catalogService.getMyPackage(mentorId, packageId);
 
         assertEquals(packageId, response.getId());
         assertEquals("Career Planning", response.getName());
@@ -335,7 +246,7 @@ class MentorServiceImplTest {
                 .thenReturn(List.of());
 
         Page<MentorDto.ServicePackageVersionResponse> response =
-                mentorService.getPackageVersions(mentorId, packageId, pageable);
+                catalogService.getPackageVersions(mentorId, packageId, pageable);
 
         assertEquals(2, response.getTotalElements());
         assertEquals(2, response.getContent().size());
@@ -356,7 +267,7 @@ class MentorServiceImplTest {
                 .thenReturn(savedCurriculums());
 
         MentorDto.ServicePackageVersionResponse response =
-                mentorService.getPackageVersion(mentorId, packageId, versionId);
+                catalogService.getPackageVersion(mentorId, packageId, versionId);
 
         assertEquals(versionId, response.getId());
         assertEquals(2, response.getCurriculums().size());
@@ -373,13 +284,13 @@ class MentorServiceImplTest {
         servicePackage.setIsActive(true);
 
         PageRequest pageable = PageRequest.of(0, 5);
-        when(servicePackageRepository.findByIsActiveTrue(pageable))
+        when(servicePackageRepository.searchActivePackages(isNull(), isNull(), eq(pageable)))
                 .thenReturn(new PageImpl<>(List.of(servicePackage), pageable, 1));
         when(servicePackageVersionRepository.findByPackageId(packageId)).thenReturn(List.of(savedVersion()));
         when(packageCurriculumRepository.findByPackageVersionIdOrderByOrderIndexAsc(versionId))
                 .thenReturn(savedCurriculums());
 
-        Page<MentorDto.ServicePackageResponse> response = mentorService.getActivePackages(pageable);
+        Page<MentorDto.ServicePackageResponse> response = catalogService.getActivePackages(null, null, pageable);
 
         assertEquals(1, response.getTotalElements());
         assertEquals("Career Planning", response.getContent().get(0).getName());
@@ -401,7 +312,7 @@ class MentorServiceImplTest {
         when(packageCurriculumRepository.findByPackageVersionIdOrderByOrderIndexAsc(versionId))
                 .thenReturn(savedCurriculums());
 
-        MentorDto.ServicePackageResponse response = mentorService.getActivePackage(packageId);
+        MentorDto.ServicePackageResponse response = catalogService.getActivePackage(packageId);
 
         assertEquals(packageId, response.getId());
         assertEquals("Career Planning", response.getName());
@@ -412,7 +323,7 @@ class MentorServiceImplTest {
     void getActivePackage_whenPackageMissing_shouldThrowPackageNotFound() {
         when(servicePackageRepository.findByIdAndIsActiveTrue(packageId)).thenReturn(Optional.empty());
 
-        AppException exception = assertThrows(AppException.class, () -> mentorService.getActivePackage(packageId));
+        AppException exception = assertThrows(AppException.class, () -> catalogService.getActivePackage(packageId));
 
         assertSame(ServiceErrorCode.PACKAGE_NOT_FOUND, exception.getExceptionCode());
     }
@@ -458,7 +369,7 @@ class MentorServiceImplTest {
         when(packageCurriculumRepository.findByPackageVersionIdOrderByOrderIndexAsc(newVersionId))
                 .thenReturn(savedClonedCurriculums(newVersionId));
 
-        MentorDto.ServicePackageResponse response = mentorService.createPackageVersion(mentorId, packageId, request);
+        MentorDto.ServicePackageResponse response = catalogService.createPackageVersion(mentorId, packageId, request);
 
         ArgumentCaptor<List<ServicePackageVersion>> versionsCaptor = ArgumentCaptor.forClass(List.class);
         verify(servicePackageVersionRepository).saveAll(versionsCaptor.capture());
@@ -496,7 +407,7 @@ class MentorServiceImplTest {
         when(servicePackageVersionRepository.findByPackageId(packageId)).thenReturn(List.of(nonDefaultVersion));
 
         AppException exception = assertThrows(AppException.class,
-                () -> mentorService.createPackageVersion(mentorId, packageId, request));
+                () -> catalogService.createPackageVersion(mentorId, packageId, request));
 
         assertSame(ServiceErrorCode.SERVICE_VERSION_NOT_FOUND, exception.getExceptionCode());
         verify(servicePackageVersionRepository, never()).save(any(ServicePackageVersion.class));
@@ -516,7 +427,7 @@ class MentorServiceImplTest {
         when(servicePackageRepository.findById(packageId)).thenReturn(Optional.of(servicePackage));
 
         AppException exception = assertThrows(AppException.class,
-                () -> mentorService.createPackageVersion(mentorId, packageId, request));
+                () -> catalogService.createPackageVersion(mentorId, packageId, request));
 
         assertSame(ServiceErrorCode.PACKAGE_NOT_FOUND, exception.getExceptionCode());
         verify(servicePackageVersionRepository, never()).findByPackageId(packageId);
@@ -541,7 +452,7 @@ class MentorServiceImplTest {
         when(packageCurriculumRepository.findByPackageVersionIdOrderByOrderIndexAsc(versionId))
                 .thenReturn(savedCurriculums());
 
-        MentorDto.ServicePackageResponse response = mentorService.updatePackage(mentorId, packageId, request);
+        MentorDto.ServicePackageResponse response = catalogService.updatePackage(mentorId, packageId, request);
 
         assertEquals("Updated package", response.getName());
         assertEquals("Updated description", response.getDescription());
@@ -564,7 +475,7 @@ class MentorServiceImplTest {
         when(servicePackageRepository.findById(packageId)).thenReturn(Optional.of(servicePackage));
 
         AppException exception = assertThrows(AppException.class,
-                () -> mentorService.updatePackage(mentorId, packageId, request));
+                () -> catalogService.updatePackage(mentorId, packageId, request));
 
         assertSame(ServiceErrorCode.PACKAGE_NOT_FOUND, exception.getExceptionCode());
         verify(servicePackageRepository, never()).save(any(ServicePackage.class));
@@ -585,7 +496,7 @@ class MentorServiceImplTest {
         when(packageCurriculumRepository.findByPackageVersionIdOrderByOrderIndexAsc(versionId))
                 .thenReturn(savedCurriculums());
 
-        MentorDto.ServicePackageResponse response = mentorService.togglePackage(mentorId, packageId);
+        MentorDto.ServicePackageResponse response = catalogService.togglePackage(mentorId, packageId);
 
         assertFalse(response.getIsActive());
         ArgumentCaptor<ServicePackage> packageCaptor = ArgumentCaptor.forClass(ServicePackage.class);
@@ -608,7 +519,7 @@ class MentorServiceImplTest {
         when(packageCurriculumRepository.findByPackageVersionIdOrderByOrderIndexAsc(versionId))
                 .thenReturn(savedCurriculums());
 
-        MentorDto.ServicePackageResponse response = mentorService.togglePackage(mentorId, packageId);
+        MentorDto.ServicePackageResponse response = catalogService.togglePackage(mentorId, packageId);
 
         assertTrue(response.getIsActive());
     }
@@ -622,7 +533,7 @@ class MentorServiceImplTest {
         when(servicePackageRepository.findById(packageId)).thenReturn(Optional.of(servicePackage));
 
         AppException exception = assertThrows(AppException.class,
-                () -> mentorService.togglePackage(mentorId, packageId));
+                () -> catalogService.togglePackage(mentorId, packageId));
 
         assertSame(ServiceErrorCode.PACKAGE_NOT_FOUND, exception.getExceptionCode());
         verify(servicePackageRepository, never()).save(any(ServicePackage.class));
@@ -657,7 +568,7 @@ class MentorServiceImplTest {
         when(packageCurriculumRepository.save(any(PackageCurriculum.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         MentorDto.CurriculumItemResponse response =
-                mentorService.updateCurriculumItem(mentorId, packageId, versionId, curriculumId, request);
+                catalogService.updateCurriculumItem(mentorId, packageId, versionId, curriculumId, request);
 
         assertEquals("Updated Session 1", response.getTitle());
         assertEquals(2, response.getOrderIndex());
@@ -691,7 +602,7 @@ class MentorServiceImplTest {
         when(packageCurriculumRepository.existsByPackageVersionIdAndOrderIndexAndIdNot(versionId, 2, curriculumId)).thenReturn(true);
 
         AppException exception = assertThrows(AppException.class,
-                () -> mentorService.updateCurriculumItem(mentorId, packageId, versionId, curriculumId, request));
+                () -> catalogService.updateCurriculumItem(mentorId, packageId, versionId, curriculumId, request));
 
         assertSame(ServiceErrorCode.DUPLICATE_CURRICULUM_ORDER_INDEX, exception.getExceptionCode());
         verify(packageCurriculumRepository, never()).save(any(PackageCurriculum.class));
@@ -720,7 +631,7 @@ class MentorServiceImplTest {
         when(packageCurriculumRepository.findById(curriculumId)).thenReturn(Optional.of(curriculum));
 
         AppException exception = assertThrows(AppException.class,
-                () -> mentorService.updateCurriculumItem(mentorId, packageId, versionId, curriculumId, request));
+                () -> catalogService.updateCurriculumItem(mentorId, packageId, versionId, curriculumId, request));
 
         assertSame(ServiceErrorCode.CURRICULUM_NOT_FOUND, exception.getExceptionCode());
         verify(packageCurriculumRepository, never()).save(any(PackageCurriculum.class));
@@ -744,7 +655,7 @@ class MentorServiceImplTest {
         when(packageCurriculumRepository.existsByPackageVersionIdAndOrderIndex(versionId, 1)).thenReturn(true);
 
         AppException exception = assertThrows(AppException.class,
-                () -> mentorService.addCurriculumItem(mentorId, packageId, versionId, request));
+                () -> catalogService.addCurriculumItem(mentorId, packageId, versionId, request));
 
         assertSame(ServiceErrorCode.DUPLICATE_CURRICULUM_ORDER_INDEX, exception.getExceptionCode());
     }
@@ -762,7 +673,7 @@ class MentorServiceImplTest {
         when(packageCurriculumRepository.findByPackageVersionIdOrderByOrderIndexAsc(versionId, pageable))
                 .thenReturn(new PageImpl<>(savedCurriculums(), pageable, 2));
 
-        Page<MentorDto.CurriculumItemResponse> response = mentorService.listCurriculum(mentorId, packageId, versionId, pageable);
+        Page<MentorDto.CurriculumItemResponse> response = catalogService.listCurriculum(mentorId, packageId, versionId, pageable);
 
         assertEquals(2, response.getTotalElements());
         assertEquals(List.of(1, 2), response.getContent().stream()
@@ -785,7 +696,7 @@ class MentorServiceImplTest {
         when(servicePackageVersionRepository.findById(versionId)).thenReturn(Optional.of(version));
         when(packageCurriculumRepository.findById(curriculumId)).thenReturn(Optional.of(curriculum));
 
-        mentorService.deleteCurriculumItem(mentorId, packageId, versionId, curriculumId);
+        catalogService.deleteCurriculumItem(mentorId, packageId, versionId, curriculumId);
 
         verify(packageCurriculumRepository).delete(curriculum);
     }
@@ -812,16 +723,6 @@ class MentorServiceImplTest {
 
         request.setCurriculums(List.of(first, second));
         return request;
-    }
-
-    private MentorProfile savedProfile(String verificationStatus) {
-        MentorProfile profile = new MentorProfile();
-        profile.setUserId(mentorId);
-        profile.setHeadline("Career mentor");
-        profile.setExpertise("Product");
-        profile.setBasePrice(new BigDecimal("100.00"));
-        profile.setVerificationStatus(verificationStatus);
-        return profile;
     }
 
     private ServicePackageVersion savedVersion() {

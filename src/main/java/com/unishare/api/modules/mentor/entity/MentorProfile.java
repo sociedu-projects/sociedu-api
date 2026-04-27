@@ -1,8 +1,10 @@
-package com.unishare.api.modules.service.entity;
+package com.unishare.api.modules.mentor.entity;
 
 import com.unishare.api.common.constants.MentorVerificationStatuses;
 import jakarta.persistence.*;
 import lombok.Getter;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.springframework.data.annotation.CreatedDate;
@@ -25,10 +27,14 @@ public class MentorProfile {
     @Column(name = "user_id")
     private UUID userId;
 
+    /** Cột phải là text/varchar trên PostgreSQL — tránh map nhầm bytea (lower(bytea) lỗi). */
+    @JdbcTypeCode(SqlTypes.LONG32VARCHAR)
+    @Column(name = "headline", columnDefinition = "TEXT")
     private String headline;
 
-    @Column(columnDefinition = "TEXT")
-    private String expertise; // comma separated
+    @JdbcTypeCode(SqlTypes.LONG32VARCHAR)
+    @Column(name = "expertise", columnDefinition = "TEXT")
+    private String expertise;
 
     @Column(name = "base_price")
     private BigDecimal basePrice;

@@ -7,7 +7,6 @@ import com.unishare.api.modules.service.dto.response.ProgressReportResponse;
 import com.unishare.api.modules.service.entity.ProgressReport;
 import com.unishare.api.modules.service.entity.ReportStatus;
 import com.unishare.api.modules.service.exception.ProgressReportErrorCode;
-import com.unishare.api.modules.service.repository.MentorProfileRepository;
 import com.unishare.api.modules.service.repository.ProgressReportRepository;
 import com.unishare.api.modules.user.dto.UserProfileResponse;
 import com.unishare.api.modules.user.service.UserService;
@@ -68,7 +67,7 @@ class ProgressReportServiceImplTest {
         request.setContent("Initial content");
         request.setAttachmentUrl("https://cdn.example.com/report.pdf");
 
-        when(mentorProfileRepository.existsById(mentorId)).thenReturn(true);
+        when(mentorProfileService.mentorProfileExists(mentorId)).thenReturn(true);
         when(progressReportRepository.save(any(ProgressReport.class))).thenAnswer(invocation -> {
             ProgressReport report = invocation.getArgument(0);
             report.setId(reportId);
@@ -95,7 +94,7 @@ class ProgressReportServiceImplTest {
         request.setTitle("Week 1");
         request.setContent("Initial content");
 
-        when(mentorProfileRepository.existsById(mentorId)).thenReturn(false);
+        when(mentorProfileService.mentorProfileExists(mentorId)).thenReturn(false);
 
         AppException exception = assertThrows(AppException.class,
                 () -> progressReportService.createReport(menteeId, request));
