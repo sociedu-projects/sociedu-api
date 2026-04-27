@@ -61,3 +61,5 @@
 2026-04-26T14:44:49.682Z  INFO [http-nio-9992-exec-2] [9a29c174-9e4b-4243-ac33-d70717eb684a] c.u.a.i.logging.RequestMdcLoggingFilter - request completed method=GET uri=/api/v1/mentors status=200 durationMs=218
 2026-04-26T14:44:49.805Z  INFO [http-nio-9992-exec-3] [7dad682e-559b-467a-babd-7d9d3f4c02c3] c.u.a.m.a.service.impl.AuthServiceImpl - [Auth] User logged in: mentee.local@sociedu.test
 2026-04-26T14:44:49.915Z  INFO [http-nio-9992-exec-3] [7dad682e-559b-467a-babd-7d9d3f4c02c3] c.u.a.i.logging.RequestMdcLoggingFilter - request completed method=POST uri=/api/v1/auth/login status=200 durationMs=450
+2026-04-26T20:16:20.134Z  WARN [HikariPool-1:housekeeper] [] com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Thread starvation or clock leap detected (housekeeper delta=3h17s648ms708µs500ns).
+2026-04-27T07:22:52.698Z  WARN [HikariPool-1:housekeeper] [] com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Thread starvation or clock leap detected (housekeeper delta=11h6m36s160ms472µs500ns).
