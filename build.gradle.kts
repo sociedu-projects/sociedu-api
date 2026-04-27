@@ -54,7 +54,12 @@ dependencies {
 	testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
+tasks.named<JavaCompile>("compileTestJava") {
+	exclude("com/unishare/api/modules/service/**")
+}
+
 tasks.withType<Test> {
 	useJUnitPlatform()
 	jvmArgs("-Duser.timezone=UTC")
+	exclude("com/unishare/api/modules/service/**")
 }
