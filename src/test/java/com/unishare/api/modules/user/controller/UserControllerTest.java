@@ -130,7 +130,7 @@ class UserControllerTest {
             mockMvc.perform(get("/api/v1/users/me/profile"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.data.userId").value(userId.toString()))
-                    .andExpect(jsonPath("$.data.firstName").doesNotExist());
+                    .andExpect(jsonPath("$.data.firstName").value((Object) null));
         }
 
         @Test
