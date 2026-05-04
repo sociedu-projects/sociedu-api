@@ -10,4 +10,6 @@ public interface AdminUserService {
     List<AdminUserSummaryResponse> listUsers();
 
     AdminUserSummaryResponse updateUserRole(UUID userId, String roleName);
+
+    AdminUserSummaryResponse updateUserStatus(UUID userId, String status);
 }

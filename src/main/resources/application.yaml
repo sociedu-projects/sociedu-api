@@ -1,6 +1,6 @@
 spring:
   config:
-    import: optional:file:.env[.properties]
+    import: optional:file:.env[.properties],optional:file:.env.prod[.properties]
   application:
     name: api
 
@@ -60,9 +60,11 @@ app:
     api-public-base: ${APP_PUBLIC_API_BASE_URL}
     cors-allowed-origins:
       - "http://localhost:3000"
+      - "http://127.0.0.1:3000"
       - "http://localhost:3001"
-      - "${app.urls.frontend-base}"
+      - "http://127.0.0.1:3001"
       - "http://localhost:5174"
+      - "${APP_FRONTEND_BASE_URL}"
   logging:
     service-method-timing: false
   auth:

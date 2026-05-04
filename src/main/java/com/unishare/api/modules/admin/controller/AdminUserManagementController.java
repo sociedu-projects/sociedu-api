@@ -3,6 +3,7 @@ package com.unishare.api.modules.admin.controller;
 import com.unishare.api.common.dto.ApiResponse;
 import com.unishare.api.config.OpenApiConfig;
 import com.unishare.api.modules.admin.dto.AdminUserSummaryResponse;
+import com.unishare.api.modules.admin.dto.UpdateUserStatusRequest;
 import com.unishare.api.modules.admin.dto.UpdateUserRoleRequest;
 import com.unishare.api.modules.admin.service.AdminUserService;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -37,7 +38,14 @@ public class AdminUserManagementController {
             @PathVariable("id") UUID userId,
             @Valid @RequestBody UpdateUserRoleRequest request) {
         return ResponseEntity.ok(ApiResponse.<AdminUserSummaryResponse>build()
-                .withData(adminUserService.updateUserRole(userId, request.getRole()))
-                .withMessage("User role updated successfully"));
+                .withData(adminUserService.updateUserRole(userId, request.getRole())));
+    }
+
+    @PatchMapping("/{id}/status")
+    public ResponseEntity<ApiResponse<AdminUserSummaryResponse>> updateUserStatus(
+            @PathVariable("id") UUID userId,
+            @Valid @RequestBody UpdateUserStatusRequest request) {
+        return ResponseEntity.ok(ApiResponse.<AdminUserSummaryResponse>build()
+                .withData(adminUserService.updateUserStatus(userId, request.getStatus())));
     }
 }

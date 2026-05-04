@@ -17,15 +17,29 @@ public interface MentorProfileRepository extends JpaRepository<MentorProfile, UU
 
     Page<MentorProfile> findByVerificationStatus(String status, Pageable pageable);
 
-    @Query("""
-            SELECT m FROM MentorProfile m
-            WHERE m.verificationStatus = :status
-            AND (:keyword IS NULL
-                 OR LOWER(m.headline) LIKE LOWER(CONCAT('%', :keyword, '%'))
-                 OR LOWER(m.expertise) LIKE LOWER(CONCAT('%', :keyword, '%')))
-            AND (:minPrice IS NULL OR m.basePrice >= :minPrice)
-            AND (:maxPrice IS NULL OR m.basePrice <= :maxPrice)
-            """)
+    @Query(
+            value = """
+                    SELECT *
+                    FROM mentor_profiles m
+                    WHERE m.verification_status = :status
+                      AND (:keyword IS NULL
+                           OR m.headline ILIKE CONCAT('%', :keyword, '%')
+                           OR m.expertise ILIKE CONCAT('%', :keyword, '%'))
+                      AND (:minPrice IS NULL OR m.base_price >= :minPrice)
+                      AND (:maxPrice IS NULL OR m.base_price <= :maxPrice)
+                    """,
+            countQuery = """
+                    SELECT COUNT(*)
+                    FROM mentor_profiles m
+                    WHERE m.verification_status = :status
+                      AND (:keyword IS NULL
+                           OR m.headline ILIKE CONCAT('%', :keyword, '%')
+                           OR m.expertise ILIKE CONCAT('%', :keyword, '%'))
+                      AND (:minPrice IS NULL OR m.base_price >= :minPrice)
+                      AND (:maxPrice IS NULL OR m.base_price <= :maxPrice)
+                    """,
+            nativeQuery = true
+    )
     Page<MentorProfile> searchByStatusAndFilters(
             @Param("status") String status,
             @Param("keyword") String keyword,

@@ -9,6 +9,8 @@ import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authorization.AuthorizationDeniedException;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -110,6 +112,18 @@ public class GlobalExceptionHandler {
                 .withErrors(errors)
                 .withMessage(reason);
         return ResponseEntity.status(status).body(body);
+    }
+
+    @ExceptionHandler({AccessDeniedException.class, AuthorizationDeniedException.class})
+    public ResponseEntity<ApiResponse<?>> handleAccessDenied(Exception e) {
+        Map<String, Object> errors = new HashMap<>();
+        errors.put("type", CommonErrorCode.FORBIDDEN.getType());
+        ApiResponse<?> body = ApiResponse.<Void>build()
+                .withHttpStatus(HttpStatus.FORBIDDEN)
+                .withCode(CommonErrorCode.FORBIDDEN.getCode())
+                .withErrors(errors)
+                .withMessage("Khong du quyen truy cap.");
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(body);
     }
 
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
