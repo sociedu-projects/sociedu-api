@@ -109,26 +109,83 @@ public class BookingServiceImpl implements BookingService {
     public BookingSessionResponse updateSession(UUID bookingId, UUID sessionId, UUID actorUserId, UpdateSessionRequest req) {
         Booking b = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new AppException(BookingErrorCode.BOOKING_NOT_FOUND));
-        if (!b.getMentorId().equals(actorUserId) && !b.getBuyerId().equals(actorUserId)) {
+
+        boolean isMentor = b.getMentorId().equals(actorUserId);
+        boolean isBuyer = b.getBuyerId().equals(actorUserId);
+
+        if (!isMentor && !isBuyer) {
             throw new AppException(BookingErrorCode.BOOKING_ACCESS_DENIED);
         }
+
         BookingSession s = sessionRepository.findById(sessionId)
                 .orElseThrow(() -> new AppException(BookingErrorCode.SESSION_NOT_FOUND));
         if (!s.getBookingId().equals(bookingId)) {
             throw new AppException(BookingErrorCode.SESSION_NOT_FOUND);
         }
+
+        if (req.getScheduledAt() != null || req.getMeetingUrl() != null) {
+            if (!isMentor) {
+                throw new AppException(BookingErrorCode.BOOKING_ACCESS_DENIED, "Chỉ Mentor mới được phép cập nhật lịch học và link meeting.");
+            }
+        }
+
         if (req.getScheduledAt() != null) {
+            if (req.getScheduledAt().isBefore(Instant.now())) {
+                throw new AppException(BookingErrorCode.INVALID_SCHEDULE_TIME, "Không thể xếp lịch trong quá khứ.");
+            }
+            // Simple overlap check (±1 hour buffer)
+            Instant start = req.getScheduledAt().minus(Duration.ofHours(1));
+            Instant end = req.getScheduledAt().plus(Duration.ofHours(1));
+            if (sessionRepository.existsOverlappingSession(b.getMentorId(), s.getId(), start, end)) {
+                throw new AppException(BookingErrorCode.INVALID_SCHEDULE_TIME, "Lịch học bị trùng với một buổi học khác của Mentor.");
+            }
             s.setScheduledAt(req.getScheduledAt());
         }
+
         if (req.getMeetingUrl() != null) {
             s.setMeetingUrl(req.getMeetingUrl());
         }
-        if (req.getStatus() != null) {
+
+        if (req.getStatus() != null && !s.getStatus().equals(req.getStatus())) {
+            // Mentor can start and complete, but maybe buyer can cancel/no-show later.
+            try {
+                com.unishare.api.modules.booking.policy.SessionStatusTransitionPolicy.validateTransition(s.getStatus(), req.getStatus());
+            } catch (IllegalStateException e) {
+                throw new AppException(BookingErrorCode.INVALID_STATE_TRANSITION, e.getMessage());
+            }
             s.setStatus(req.getStatus());
+            
             if (SessionStatuses.COMPLETED.equals(req.getStatus())) {
-                s.setCompletedAt(Instant.now());
+                s.setActualEndedAt(Instant.now());
+                if (s.getActualStartedAt() == null) {
+                    s.setActualStartedAt(s.getScheduledAt() != null ? s.getScheduledAt() : Instant.now());
+                }
+            } else if (com.unishare.api.modules.booking.policy.SessionStatusTransitionPolicy.IN_PROGRESS.equals(req.getStatus())) {
+                s.setActualStartedAt(Instant.now());
+                
+                // Auto-transition booking to IN_PROGRESS
+                if (BookingStatuses.PENDING.equals(b.getStatus()) || BookingStatuses.SCHEDULED.equals(b.getStatus())) {
+                    com.unishare.api.modules.booking.policy.BookingStatusTransitionPolicy.validateTransition(b.getStatus(), BookingStatuses.IN_PROGRESS);
+                    b.setStatus(BookingStatuses.IN_PROGRESS);
+                    bookingRepository.save(b);
+                }
+            } else if (SessionStatuses.CANCELED.equals(req.getStatus())) {
+                s.setCanceledBy(actorUserId);
+                s.setCanceledAt(Instant.now());
+                s.setCancelReason("Canceled by user");
             }
         }
+
+        // Auto transition to SCHEDULED if both details are provided and it is still PENDING
+        if (s.getScheduledAt() != null && s.getMeetingUrl() != null && SessionStatuses.PENDING.equals(s.getStatus())) {
+            try {
+                com.unishare.api.modules.booking.policy.SessionStatusTransitionPolicy.validateTransition(s.getStatus(), SessionStatuses.SCHEDULED);
+                s.setStatus(SessionStatuses.SCHEDULED);
+            } catch (IllegalStateException e) {
+                throw new AppException(BookingErrorCode.INVALID_STATE_TRANSITION, e.getMessage());
+            }
+        }
+
         sessionRepository.save(s);
         return mapSession(s);
     }
