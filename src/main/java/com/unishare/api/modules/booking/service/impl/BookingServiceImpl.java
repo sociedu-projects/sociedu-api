@@ -182,7 +182,15 @@ public class BookingServiceImpl implements BookingService {
                 s.setStatus(req.getStatus());
                 s.setCanceledBy(actorUserId);
                 s.setCanceledAt(Instant.now());
-                s.setCancelReason("Canceled by user");
+                s.setCancelReason(req.getCancelReason() != null ? req.getCancelReason() : "Canceled by user");
+                
+                eventPublisher.publish(new com.unishare.api.common.event.SessionCanceledEvent(
+                        b.getId(), s.getId(), actorUserId, s.getCancelReason()));
+            } else if (SessionStatuses.NO_SHOW.equals(req.getStatus())) {
+                s.setStatus(req.getStatus());
+                // You can add logic for NO_SHOW here (who didn't show up, etc.)
+                // Mentor could report mentee no-show, or mentee report mentor no-show
+                // This could also trigger an event for dispute resolution
             } else {
                 s.setStatus(req.getStatus());
             }

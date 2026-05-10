@@ -9,4 +9,5 @@ public class UpdateSessionRequest {
     private Instant scheduledAt;
     private String meetingUrl;
     private String status;
+    private String cancelReason;
 }

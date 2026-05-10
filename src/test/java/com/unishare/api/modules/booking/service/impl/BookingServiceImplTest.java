@@ -197,4 +197,23 @@ class BookingServiceImplTest {
         
         verify(eventPublisher).publish(any(com.unishare.api.common.event.BookingCompletedEvent.class));
     }
+
+    @Test
+    void updateSession_ShouldPublishSessionCanceledEvent_WhenSessionIsCanceled() {
+        when(bookingRepository.findById(bookingId)).thenReturn(Optional.of(booking));
+        when(sessionRepository.findById(sessionId)).thenReturn(Optional.of(session));
+
+        UpdateSessionRequest req = new UpdateSessionRequest();
+        req.setStatus(SessionStatuses.CANCELED);
+        req.setCancelReason("Bận đột xuất");
+
+        bookingService.updateSession(bookingId, sessionId, mentorId, req);
+
+        assertEquals(SessionStatuses.CANCELED, session.getStatus());
+        assertEquals("Bận đột xuất", session.getCancelReason());
+        assertEquals(mentorId, session.getCanceledBy());
+        assertNotNull(session.getCanceledAt());
+        
+        verify(eventPublisher).publish(any(com.unishare.api.common.event.SessionCanceledEvent.class));
+    }
 }
