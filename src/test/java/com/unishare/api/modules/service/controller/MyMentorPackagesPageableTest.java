@@ -34,7 +34,7 @@ class MyMentorPackagesPageableTest {
         @Test
         void getMyPackages_whenPageParamsProvided_shouldReturnPagedData() {
                 UUID mentorId = UUID.randomUUID();
-                PageRequest pageable = PageRequest.of(1, 5);
+                PageRequest pageable = PageRequest.of(0, 5);
                 CustomUserPrincipal principal = new CustomUserPrincipal(
                                 mentorId,
                                 "mentor@example.com",

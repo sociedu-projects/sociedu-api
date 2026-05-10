@@ -190,4 +190,16 @@ public class ServicePackageController {
                 .withData(catalogService.togglePackage(principal.getUserId(), id))
                 .withMessage("Cap nhat trang thai goi dich vu thanh cong"));
     }
+
+    @Operation(summary = "Xoa (archive) goi dich vu")
+    @SecurityRequirement(name = OpenApiConfig.BEARER_JWT)
+    @PreAuthorize("hasRole('MENTOR')")
+    @DeleteMapping("/{id}")
+    public ResponseEntity<ApiResponse<Void>> deletePackage(
+            @AuthenticationPrincipal CustomUserPrincipal principal,
+            @PathVariable UUID id) {
+        catalogService.deletePackage(principal.getUserId(), id);
+        return ResponseEntity.ok(ApiResponse.<Void>build()
+                .withMessage("Xoa goi dich vu thanh cong"));
+    }
 }

@@ -22,6 +22,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -65,7 +66,7 @@ public class CatalogServiceImpl implements CatalogService {
 
     @Override
     public ServicePackageResponse getActivePackage(UUID packageId) {
-        ServicePackage servicePackage = servicePackageRepository.findByIdAndIsActiveTrue(packageId)
+        ServicePackage servicePackage = servicePackageRepository.findActiveById(packageId)
                 .orElseThrow(() -> new AppException(ServiceErrorCode.PACKAGE_NOT_FOUND, "Package not found"));
         return mapToCatalogPackageResponse(servicePackage);
     }
@@ -119,6 +120,7 @@ public class CatalogServiceImpl implements CatalogService {
         ServicePackage pkg = servicePackageRepository.findById(packageId)
                 .filter(p -> p.getMentorId().equals(mentorId))
                 .orElseThrow(() -> new AppException(ServiceErrorCode.PACKAGE_NOT_FOUND, "Package not found"));
+        assertPackageNotArchived(pkg);
 
         List<ServicePackageVersion> existingVersions = servicePackageVersionRepository.findByPackageId(packageId);
         ServicePackageVersion currentDefaultVersion = existingVersions.stream()
@@ -152,6 +154,7 @@ public class CatalogServiceImpl implements CatalogService {
         ServicePackage pkg = servicePackageRepository.findById(packageId)
                 .filter(p -> p.getMentorId().equals(mentorId))
                 .orElseThrow(() -> new AppException(ServiceErrorCode.PACKAGE_NOT_FOUND, "Package not found"));
+        assertPackageNotArchived(pkg);
 
         pkg.setName(request.getName());
         pkg.setDescription(request.getDescription());
@@ -165,6 +168,7 @@ public class CatalogServiceImpl implements CatalogService {
         ServicePackage pkg = servicePackageRepository.findById(packageId)
                 .filter(p -> p.getMentorId().equals(mentorId))
                 .orElseThrow(() -> new AppException(ServiceErrorCode.PACKAGE_NOT_FOUND, "Package not found"));
+        assertPackageNotArchived(pkg);
 
         pkg.setIsActive(!Boolean.TRUE.equals(pkg.getIsActive()));
         ServicePackage saved = servicePackageRepository.save(pkg);
@@ -177,12 +181,11 @@ public class CatalogServiceImpl implements CatalogService {
         ServicePackage pkg = servicePackageRepository.findById(packageId)
                 .filter(p -> p.getMentorId().equals(mentorId))
                 .orElseThrow(() -> new AppException(ServiceErrorCode.PACKAGE_NOT_FOUND, "Package not found"));
-        List<ServicePackageVersion> versions = servicePackageVersionRepository.findByPackageId(packageId);
-        for (ServicePackageVersion v : versions) {
-            packageCurriculumRepository.deleteByPackageVersionId(v.getId());
-            servicePackageVersionRepository.delete(v);
-        }
-        servicePackageRepository.delete(pkg);
+        assertPackageNotArchived(pkg);
+
+        pkg.setDeletedAt(Instant.now());
+        pkg.setIsActive(false);
+        servicePackageRepository.save(pkg);
     }
 
     private ServicePackageResponse mapToPackageResponse(ServicePackage pkg) {
@@ -200,6 +203,7 @@ public class CatalogServiceImpl implements CatalogService {
                 .name(pkg.getName())
                 .description(pkg.getDescription())
                 .isActive(pkg.getIsActive())
+                .isArchived(pkg.isDeleted())
                 .versions(versions.stream()
                         .map(version -> mapVersion(version, curriculumsByVersionId.getOrDefault(version.getId(), List.of())))
                         .collect(Collectors.toList()))
@@ -222,6 +226,7 @@ public class CatalogServiceImpl implements CatalogService {
                 .name(pkg.getName())
                 .description(pkg.getDescription())
                 .isActive(pkg.getIsActive())
+                .isArchived(pkg.isDeleted())
                 .versions(versions)
                 .build();
     }
@@ -249,7 +254,7 @@ public class CatalogServiceImpl implements CatalogService {
     @Override
     @Transactional
     public CurriculumItemResponse addCurriculumItem(UUID mentorId, UUID packageId, UUID versionId, CurriculumItemRequest request) {
-        ServicePackageVersion ver = requireOwnedVersion(mentorId, packageId, versionId);
+        ServicePackageVersion ver = requireOwnedVersionForMutation(mentorId, packageId, versionId);
         if (packageCurriculumRepository.existsByPackageVersionIdAndOrderIndex(ver.getId(), request.getOrderIndex())) {
             throw new AppException(ServiceErrorCode.DUPLICATE_CURRICULUM_ORDER_INDEX,
                     "Thứ tự curriculum không được trùng nhau trong cùng một phiên bản gói");
@@ -267,7 +272,7 @@ public class CatalogServiceImpl implements CatalogService {
     @Override
     @Transactional
     public CurriculumItemResponse updateCurriculumItem(UUID mentorId, UUID packageId, UUID versionId, UUID curriculumId, CurriculumItemRequest request) {
-        ServicePackageVersion ver = requireOwnedVersion(mentorId, packageId, versionId);
+        ServicePackageVersion ver = requireOwnedVersionForMutation(mentorId, packageId, versionId);
         PackageCurriculum curriculum = packageCurriculumRepository.findById(curriculumId)
                 .filter(item -> item.getPackageVersionId().equals(ver.getId()))
                 .orElseThrow(() -> new AppException(ServiceErrorCode.CURRICULUM_NOT_FOUND, "Curriculum not found"));
@@ -301,22 +306,19 @@ public class CatalogServiceImpl implements CatalogService {
                 .orElseThrow(() -> new AppException(ServiceErrorCode.CURRICULUM_NOT_FOUND, "Curriculum not found"));
         ServicePackageVersion ver = servicePackageVersionRepository.findById(c.getPackageVersionId())
                 .orElseThrow(() -> new AppException(ServiceErrorCode.SERVICE_VERSION_NOT_FOUND, "Version not found"));
-        assertPackageOwner(mentorId, ver.getPackageId());
+        ServicePackage pkg = requireOwnedPackage(mentorId, ver.getPackageId());
+        assertPackageNotArchived(pkg);
         packageCurriculumRepository.delete(c);
     }
 
     @Override
     @Transactional
     public void deleteCurriculumItem(UUID mentorId, UUID packageId, UUID versionId, UUID curriculumId) {
-        ServicePackageVersion version = requireOwnedVersion(mentorId, packageId, versionId);
+        ServicePackageVersion version = requireOwnedVersionForMutation(mentorId, packageId, versionId);
         PackageCurriculum curriculum = packageCurriculumRepository.findById(curriculumId)
                 .filter(item -> item.getPackageVersionId().equals(version.getId()))
                 .orElseThrow(() -> new AppException(ServiceErrorCode.CURRICULUM_NOT_FOUND, "Curriculum not found"));
         packageCurriculumRepository.delete(curriculum);
-    }
-
-    private void assertPackageOwner(UUID mentorId, UUID packageId) {
-        requireOwnedPackage(mentorId, packageId);
     }
 
     private ServicePackage requireOwnedPackage(UUID mentorId, UUID packageId) {
@@ -325,8 +327,24 @@ public class CatalogServiceImpl implements CatalogService {
                 .orElseThrow(() -> new AppException(ServiceErrorCode.PACKAGE_NOT_FOUND, "Package not found"));
     }
 
+    private void assertPackageNotArchived(ServicePackage pkg) {
+        if (pkg.isDeleted()) {
+            throw new AppException(ServiceErrorCode.PACKAGE_ALREADY_ARCHIVED, "Package already archived");
+        }
+    }
+
     private ServicePackageVersion requireOwnedVersion(UUID mentorId, UUID packageId, UUID versionId) {
         ServicePackage pkg = requireOwnedPackage(mentorId, packageId);
+        return requireVersionForPackage(pkg, versionId);
+    }
+
+    private ServicePackageVersion requireOwnedVersionForMutation(UUID mentorId, UUID packageId, UUID versionId) {
+        ServicePackage pkg = requireOwnedPackage(mentorId, packageId);
+        assertPackageNotArchived(pkg);
+        return requireVersionForPackage(pkg, versionId);
+    }
+
+    private ServicePackageVersion requireVersionForPackage(ServicePackage pkg, UUID versionId) {
         return servicePackageVersionRepository.findById(versionId)
                 .filter(v -> v.getPackageId().equals(pkg.getId()))
                 .orElseThrow(() -> new AppException(ServiceErrorCode.SERVICE_VERSION_NOT_FOUND, "Version not found"));

@@ -18,15 +18,18 @@ public interface ServicePackageRepository extends JpaRepository<ServicePackage, 
 
     Page<ServicePackage> findByMentorId(UUID mentorId, Pageable pageable);
 
-    Page<ServicePackage> findByMentorIdAndIsActiveTrue(UUID mentorId, Pageable pageable);
-
-    Page<ServicePackage> findByIsActiveTrue(Pageable pageable);
-
-    Optional<ServicePackage> findByIdAndIsActiveTrue(UUID id);
+    @Query("""
+            SELECT p FROM ServicePackage p
+            WHERE p.id = :id
+            AND p.isActive = true
+            AND p.deletedAt IS NULL
+            """)
+    Optional<ServicePackage> findActiveById(@Param("id") UUID id);
 
     @Query("""
             SELECT p FROM ServicePackage p
             WHERE p.isActive = true
+            AND p.deletedAt IS NULL
             AND (:mentorId IS NULL OR p.mentorId = :mentorId)
             AND (:keyword IS NULL
                  OR LOWER(p.name) LIKE LOWER(CONCAT('%', :keyword, '%'))
@@ -41,6 +44,7 @@ public interface ServicePackageRepository extends JpaRepository<ServicePackage, 
             SELECT p FROM ServicePackage p
             WHERE p.mentorId = :mentorId
             AND p.isActive = true
+            AND p.deletedAt IS NULL
             AND (:keyword IS NULL
                  OR LOWER(p.name) LIKE LOWER(CONCAT('%', :keyword, '%'))
                  OR LOWER(COALESCE(p.description, '')) LIKE LOWER(CONCAT('%', :keyword, '%')))

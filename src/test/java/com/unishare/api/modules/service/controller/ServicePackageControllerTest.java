@@ -25,6 +25,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -369,6 +370,26 @@ class ServicePackageControllerTest {
                 assertEquals(200, result.getStatusCode().value());
                 assertEquals(packageId, result.getBody().getData().getId());
                 assertEquals(false, result.getBody().getData().getIsActive());
+        }
+
+        @Test
+        void deletePackage_shouldDelegateToServiceAndReturnSuccessMessage() {
+                UUID mentorId = UUID.randomUUID();
+                UUID packageId = UUID.randomUUID();
+                CustomUserPrincipal principal = new CustomUserPrincipal(
+                                mentorId,
+                                "mentor@example.com",
+                                "hashed",
+                                List.of("MENTOR"),
+                                List.of(),
+                                true);
+
+                ServicePackageController controller = new ServicePackageController(catalogService);
+                ResponseEntity<ApiResponse<Void>> result = controller.deletePackage(principal, packageId);
+
+                assertEquals(200, result.getStatusCode().value());
+                assertEquals("Xoa goi dich vu thanh cong", result.getBody().getMessage());
+                verify(catalogService).deletePackage(mentorId, packageId);
         }
 
         @Test

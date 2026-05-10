@@ -24,6 +24,7 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -314,7 +315,7 @@ class CatalogServiceImplTest {
                 servicePackage.setDescription("Package description");
                 servicePackage.setIsActive(true);
 
-                when(servicePackageRepository.findByIdAndIsActiveTrue(packageId))
+                when(servicePackageRepository.findActiveById(packageId))
                                 .thenReturn(Optional.of(servicePackage));
                 when(servicePackageVersionRepository.findByPackageId(packageId)).thenReturn(List.of(savedVersion()));
                 when(packageCurriculumRepository.findByPackageVersionIdOrderByOrderIndexAsc(versionId))
@@ -329,7 +330,7 @@ class CatalogServiceImplTest {
 
         @Test
         void getActivePackage_whenPackageMissing_shouldThrowPackageNotFound() {
-                when(servicePackageRepository.findByIdAndIsActiveTrue(packageId)).thenReturn(Optional.empty());
+                when(servicePackageRepository.findActiveById(packageId)).thenReturn(Optional.empty());
 
                 AppException exception = assertThrows(AppException.class,
                                 () -> catalogService.getActivePackage(packageId));
@@ -554,6 +555,84 @@ class CatalogServiceImplTest {
 
                 assertSame(ServiceErrorCode.PACKAGE_NOT_FOUND, exception.getExceptionCode());
                 verify(servicePackageRepository, never()).save(any(ServicePackage.class));
+        }
+
+        @Test
+        void deletePackage_whenOwnedPackageExists_shouldArchiveAndDisablePackage() {
+                ServicePackage servicePackage = new ServicePackage();
+                servicePackage.setId(packageId);
+                servicePackage.setMentorId(mentorId);
+                servicePackage.setIsActive(true);
+
+                when(servicePackageRepository.findById(packageId)).thenReturn(Optional.of(servicePackage));
+                when(servicePackageRepository.save(any(ServicePackage.class)))
+                                .thenAnswer(invocation -> invocation.getArgument(0));
+
+                catalogService.deletePackage(mentorId, packageId);
+
+                ArgumentCaptor<ServicePackage> packageCaptor = ArgumentCaptor.forClass(ServicePackage.class);
+                verify(servicePackageRepository).save(packageCaptor.capture());
+                assertFalse(packageCaptor.getValue().getIsActive());
+                assertNotNull(packageCaptor.getValue().getDeletedAt());
+                verify(servicePackageRepository, never()).delete(any(ServicePackage.class));
+                verify(servicePackageVersionRepository, never()).delete(any(ServicePackageVersion.class));
+        }
+
+        @Test
+        void deletePackage_whenRequesterIsNotOwner_shouldThrowPackageNotFound() {
+                ServicePackage servicePackage = new ServicePackage();
+                servicePackage.setId(packageId);
+                servicePackage.setMentorId(UUID.randomUUID());
+
+                when(servicePackageRepository.findById(packageId)).thenReturn(Optional.of(servicePackage));
+
+                AppException exception = assertThrows(AppException.class,
+                                () -> catalogService.deletePackage(mentorId, packageId));
+
+                assertSame(ServiceErrorCode.PACKAGE_NOT_FOUND, exception.getExceptionCode());
+                verify(servicePackageRepository, never()).save(any(ServicePackage.class));
+        }
+
+        @Test
+        void deletePackage_whenAlreadyArchived_shouldThrowConflict() {
+                ServicePackage servicePackage = new ServicePackage();
+                servicePackage.setId(packageId);
+                servicePackage.setMentorId(mentorId);
+                servicePackage.setIsActive(false);
+                servicePackage.setDeletedAt(Instant.now());
+
+                when(servicePackageRepository.findById(packageId)).thenReturn(Optional.of(servicePackage));
+
+                AppException exception = assertThrows(AppException.class,
+                                () -> catalogService.deletePackage(mentorId, packageId));
+
+                assertSame(ServiceErrorCode.PACKAGE_ALREADY_ARCHIVED, exception.getExceptionCode());
+                verify(servicePackageRepository, never()).save(any(ServicePackage.class));
+        }
+
+        @Test
+        void getMyPackages_whenPackageArchived_shouldReturnArchiveFlag() {
+                ServicePackage archivedPackage = new ServicePackage();
+                archivedPackage.setId(packageId);
+                archivedPackage.setMentorId(mentorId);
+                archivedPackage.setName("Archived package");
+                archivedPackage.setDescription("Archived package");
+                archivedPackage.setIsActive(false);
+                archivedPackage.setDeletedAt(Instant.now());
+
+                PageRequest pageable = PageRequest.of(0, 5);
+                when(servicePackageRepository.searchByMentorId(eq(mentorId), isNull(), eq(pageable)))
+                                .thenReturn(new PageImpl<>(List.of(archivedPackage), pageable, 1));
+                when(servicePackageVersionRepository.findByPackageId(packageId)).thenReturn(List.of(savedVersion()));
+                when(packageCurriculumRepository.findByPackageVersionIdOrderByOrderIndexAsc(versionId))
+                                .thenReturn(savedCurriculums());
+
+                Page<MentorDto.ServicePackageResponse> response = catalogService.getMyPackages(mentorId, null,
+                                pageable);
+
+                assertEquals(1, response.getTotalElements());
+                assertTrue(response.getContent().get(0).getIsArchived());
+                assertFalse(response.getContent().get(0).getIsActive());
         }
 
         @Test

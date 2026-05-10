@@ -32,7 +32,7 @@ public class CatalogReadServiceImpl implements CatalogReadService {
                 .orElseThrow(() -> new AppException(ServiceErrorCode.SERVICE_VERSION_NOT_FOUND));
         ServicePackage pkg = packageRepository.findById(v.getPackageId())
                 .orElseThrow(() -> new AppException(ServiceErrorCode.SERVICE_VERSION_NOT_FOUND));
-        if (!Boolean.TRUE.equals(pkg.getIsActive())) {
+        if (!Boolean.TRUE.equals(pkg.getIsActive()) || pkg.isDeleted()) {
             throw new AppException(ServiceErrorCode.PACKAGE_INACTIVE);
         }
         return v;
