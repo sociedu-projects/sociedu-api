@@ -25,35 +25,36 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 class MentorControllerPageableTest {
 
-    private MockMvc mockMvc;
-    private MentorService mentorProfileService;
+        private MockMvc mockMvc;
+        private MentorService mentorProfileService;
 
-    @BeforeEach
-    void setUp() {
-        mentorProfileService = Mockito.mock(MentorService.class);
-        mockMvc = MockMvcBuilders.standaloneSetup(new MentorController(mentorProfileService))
-                .setCustomArgumentResolvers(new PageableHandlerMethodArgumentResolver())
-                .build();
-    }
+        @BeforeEach
+        void setUp() {
+                mentorProfileService = Mockito.mock(MentorService.class);
+                mockMvc = MockMvcBuilders.standaloneSetup(new MentorController(mentorProfileService))
+                                .setCustomArgumentResolvers(new PageableHandlerMethodArgumentResolver())
+                                .build();
+        }
 
-    @Test
-    void getAllVerifiedMentors_whenPageParamsProvided_shouldReturnPagedData() throws Exception {
-        MentorResponse response = MentorResponse.builder()
-                .userId(UUID.randomUUID())
-                .headline("Career mentor")
-                .verificationStatus("verified")
-                .build();
+        @Test
+        void getAllVerifiedMentors_whenPageParamsProvided_shouldReturnPagedData() throws Exception {
+                MentorResponse response = MentorResponse.builder()
+                                .userId(UUID.randomUUID())
+                                .headline("Career mentor")
+                                .verificationStatus("verified")
+                                .build();
 
-        when(mentorProfileService.searchMentors(
-                eq(MentorVerificationStatuses.VERIFIED), isNull(), isNull(), isNull(), eq(PageRequest.of(1, 5))))
-                .thenReturn(new PageImpl<>(List.of(response), PageRequest.of(1, 5), 1));
+                when(mentorProfileService.searchMentors(
+                                eq(MentorVerificationStatuses.VERIFIED), isNull(), isNull(), isNull(),
+                                eq(PageRequest.of(1, 5))))
+                                .thenReturn(new PageImpl<>(List.of(response), PageRequest.of(1, 5), 1));
 
-        mockMvc.perform(get("/api/v1/mentors")
-                        .param("page", "1")
-                        .param("size", "5"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.content[0].headline").value("Career mentor"))
-                .andExpect(jsonPath("$.data.number").value(1))
-                .andExpect(jsonPath("$.data.size").value(5));
-    }
+                mockMvc.perform(get("/api/v1/mentors")
+                                .param("page", "1")
+                                .param("size", "5"))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.data.content[0].headline").value("Career mentor"))
+                                .andExpect(jsonPath("$.data.number").value(1))
+                                .andExpect(jsonPath("$.data.size").value(5));
+        }
 }

@@ -1,6 +1,7 @@
 package com.unishare.api.modules.service.service.impl;
 
 import com.unishare.api.common.dto.AppException;
+import com.unishare.api.modules.mentor.service.MentorService;
 import com.unishare.api.modules.service.dto.request.CreateReportRequest;
 import com.unishare.api.modules.service.dto.request.ReviewReportRequest;
 import com.unishare.api.modules.service.dto.response.ProgressReportResponse;
@@ -40,7 +41,7 @@ class ProgressReportServiceImplTest {
     private ProgressReportRepository progressReportRepository;
 
     @Mock
-    private MentorProfileRepository mentorProfileRepository;
+    private MentorService mentorProfileService;
 
     @Mock
     private UserService userService;
@@ -161,7 +162,8 @@ class ProgressReportServiceImplTest {
         request.setMentorFeedback("Strong progress");
 
         when(progressReportRepository.findById(reportId)).thenReturn(Optional.of(report));
-        when(progressReportRepository.save(any(ProgressReport.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(progressReportRepository.save(any(ProgressReport.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
         when(userService.getProfile(menteeId)).thenReturn(profile(menteeId, "Jane", "Doe"));
         when(userService.getProfile(mentorId)).thenReturn(profile(mentorId, "John", "Mentor"));
 

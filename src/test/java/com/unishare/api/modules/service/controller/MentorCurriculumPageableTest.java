@@ -3,7 +3,7 @@ package com.unishare.api.modules.service.controller;
 import com.unishare.api.common.dto.ApiResponse;
 import com.unishare.api.infrastructure.security.CustomUserPrincipal;
 import com.unishare.api.modules.service.dto.MentorDto;
-import com.unishare.api.modules.service.service.MentorService;
+import com.unishare.api.modules.service.service.CatalogService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -21,13 +21,13 @@ import static org.mockito.Mockito.when;
 
 class MentorCurriculumPageableTest {
 
-    private MentorController mentorController;
-    private MentorService mentorService;
+    private MentorCatalogController mentorController;
+    private CatalogService catalogService;
 
     @BeforeEach
     void setUp() {
-        mentorService = Mockito.mock(MentorService.class);
-        mentorController = new MentorController(mentorService);
+        catalogService = Mockito.mock(CatalogService.class);
+        mentorController = new MentorCatalogController(catalogService);
     }
 
     @Test
@@ -35,7 +35,8 @@ class MentorCurriculumPageableTest {
         UUID mentorId = UUID.randomUUID();
         UUID packageId = UUID.randomUUID();
         UUID versionId = UUID.randomUUID();
-        PageRequest pageable = PageRequest.of(1, 5);
+        // Use page=0 to avoid Spring's total adjustment (offset=0, no adjustment needed)
+        PageRequest pageable = PageRequest.of(0, 5);
         CustomUserPrincipal principal = new CustomUserPrincipal(
                 mentorId,
                 "mentor@example.com",
@@ -53,7 +54,7 @@ class MentorCurriculumPageableTest {
                 .duration(60)
                 .build();
 
-        when(mentorService.listCurriculum(eq(mentorId), eq(packageId), eq(versionId), eq(pageable)))
+        when(catalogService.listCurriculum(eq(mentorId), eq(packageId), eq(versionId), eq(pageable)))
                 .thenReturn(new PageImpl<>(List.of(response), pageable, 1));
 
         ResponseEntity<ApiResponse<Page<MentorDto.CurriculumItemResponse>>> result =

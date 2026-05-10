@@ -17,10 +17,11 @@ public interface MentorService {
     Page<MentorResponse> getAllVerifiedMentors(Pageable pageable);
 
     /**
-     * Danh sách mentor theo trạng thái xác minh + lọc từ khóa (headline/expertise), khoảng giá base.
+     * Danh sách mentor theo trạng thái xác minh + lọc từ khóa (headline/expertise),
+     * khoảng giá base.
      */
     Page<MentorResponse> searchMentors(String verificationStatus, String keyword,
-                                       BigDecimal minBasePrice, BigDecimal maxBasePrice, Pageable pageable);
+            BigDecimal minBasePrice, BigDecimal maxBasePrice, Pageable pageable);
 
     boolean mentorProfileExists(UUID userId);
 }
