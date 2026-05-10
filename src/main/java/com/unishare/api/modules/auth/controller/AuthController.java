@@ -175,6 +175,63 @@ public class AuthController {
                 .withMessage("Đã đăng xuất khỏi mọi thiết bị."));
     }
 
+    // =========================================================================
+    // FLOW A — Xác thực số điện thoại (Authenticated)
+    // =========================================================================
+
+    /** POST /api/v1/auth/phone/send-otp — Gửi OTP tới email để xác thực phone. */
+    @Operation(summary = "Gửi OTP xác thực số điện thoại (qua email)")
+    @SecurityRequirement(name = OpenApiConfig.BEARER_JWT)
+    @PreAuthorize("isAuthenticated()")
+    @PostMapping("/phone/send-otp")
+    public ResponseEntity<ApiResponse<Void>> sendPhoneOtp(
+            @AuthenticationPrincipal CustomUserPrincipal principal,
+            @Valid @RequestBody SendPhoneOtpRequest request) {
+        authService.sendPhoneVerificationOtp(principal.getUserId(), request);
+        return ResponseEntity.ok(ApiResponse.<Void>build()
+                .withMessage("Mã OTP đã được gửi tới email của bạn."));
+    }
+
+    /** POST /api/v1/auth/phone/verify-otp — Xác thực OTP và gắn phone vào tài khoản. */
+    @Operation(summary = "Xác thực OTP để gắn số điện thoại")
+    @SecurityRequirement(name = OpenApiConfig.BEARER_JWT)
+    @PreAuthorize("isAuthenticated()")
+    @PostMapping("/phone/verify-otp")
+    public ResponseEntity<ApiResponse<Void>> verifyPhoneOtp(
+            @AuthenticationPrincipal CustomUserPrincipal principal,
+            @Valid @RequestBody VerifyPhoneOtpRequest request) {
+        authService.verifyPhoneOtp(principal.getUserId(), request);
+        return ResponseEntity.ok(ApiResponse.<Void>build()
+                .withMessage("Xác thực số điện thoại thành công."));
+    }
+
+    // =========================================================================
+    // FLOW C — Đăng nhập bằng email OTP (Public)
+    // =========================================================================
+
+    /** POST /api/v1/auth/otp/send — Gửi OTP đăng nhập tới email. */
+    @Operation(summary = "Gửi mã OTP đăng nhập qua email")
+    @PostMapping("/otp/send")
+    public ResponseEntity<ApiResponse<Void>> sendLoginOtp(
+            @Valid @RequestBody SendLoginOtpRequest request) {
+        authService.sendLoginOtp(request);
+        return ResponseEntity.ok(ApiResponse.<Void>build()
+                .withMessage("Nếu email hợp lệ, mã OTP đã được gửi."));
+    }
+
+    /** POST /api/v1/auth/otp/login — Đăng nhập bằng email + OTP. */
+    @Operation(summary = "Đăng nhập bằng email OTP")
+    @PostMapping("/otp/login")
+    public ResponseEntity<ApiResponse<AuthResponse>> loginWithOtp(
+            @Valid @RequestBody LoginOtpRequest request,
+            HttpServletRequest servletRequest) {
+        AuthResponse data = authService.loginWithOtp(request, clientIp(servletRequest),
+                servletRequest.getHeader("User-Agent"));
+        return ResponseEntity.ok(ApiResponse.<AuthResponse>build()
+                .withData(data)
+                .withMessage("Đăng nhập thành công."));
+    }
+
     /** Trích client IP, ưu tiên header forwarded (reverse proxy). */
     private String clientIp(HttpServletRequest request) {
         String xff = request.getHeader("X-Forwarded-For");

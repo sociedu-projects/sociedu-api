@@ -5,7 +5,9 @@ import com.unishare.api.common.constants.UserStatuses;
 import com.unishare.api.common.dto.AppException;
 import com.unishare.api.infrastructure.event.DomainEventPublisher;
 import com.unishare.api.common.event.EmailVerificationMailEvent;
+import com.unishare.api.common.event.LoginOtpMailEvent;
 import com.unishare.api.common.event.PasswordResetMailEvent;
+import com.unishare.api.common.event.PhoneVerificationOtpMailEvent;
 import com.unishare.api.modules.auth.dto.request.*;
 import com.unishare.api.modules.auth.dto.response.AuthResponse;
 import com.unishare.api.modules.auth.dto.response.MeResponse;
@@ -38,6 +40,10 @@ import java.util.UUID;
 public class AuthServiceImpl implements AuthService {
 
     private static final int OTP_TTL_MINUTES = 10;
+    private static final int PHONE_OTP_TTL_MINUTES = 5;
+    private static final int LOGIN_OTP_TTL_MINUTES = 5;
+    private static final int OTP_NUMERIC_LENGTH = 6;
+    private static final int MAX_OTP_PER_HOUR = 5;
     private static final SecureRandom RANDOM = new SecureRandom();
     private static final HexFormat HEX = HexFormat.of();
 
@@ -133,7 +139,8 @@ public class AuthServiceImpl implements AuthService {
         return buildAuthResponse(user, roles, profile, ipAddress, userAgent);
     }
 
-    // ------------------------------------------------------------------ refreshToken
+    // ------------------------------------------------------------------
+    // refreshToken
     @Override
     @Transactional
     public AuthResponse refreshToken(RefreshTokenRequest request, String ipAddress, String userAgent) {
@@ -206,7 +213,8 @@ public class AuthServiceImpl implements AuthService {
                 });
     }
 
-    // ------------------------------------------------------------------ sendVerificationEmail
+    // ------------------------------------------------------------------
+    // sendVerificationEmail
     @Override
     @Transactional
     public void sendVerificationEmail(String email) {
@@ -228,13 +236,15 @@ public class AuthServiceImpl implements AuthService {
         log.info("[Auth] Verification email queued for userId={}", user.getId());
     }
 
-    // ------------------------------------------------------------------ verifyEmail
+    // ------------------------------------------------------------------
+    // verifyEmail
     @Override
     @Transactional
     public AuthResponse verifyEmail(String token) {
         OtpToken otp = otpTokenRepository
                 .findByCodeAndTypeAndUsedFalse(token, OtpType.EMAIL_VERIFY)
-                .orElseThrow(() -> new AppException(AuthErrorCode.INVALID_OTP, "Liên kết xác minh không hợp lệ hoặc đã được sử dụng"));
+                .orElseThrow(() -> new AppException(AuthErrorCode.INVALID_OTP,
+                        "Liên kết xác minh không hợp lệ hoặc đã được sử dụng"));
 
         if (otp.isExpired()) {
             throw new AppException(AuthErrorCode.OTP_EXPIRED, "Liên kết xác minh đã hết hạn");
@@ -264,7 +274,8 @@ public class AuthServiceImpl implements AuthService {
         return buildAuthResponse(user, roles, profile, null, null);
     }
 
-    // ------------------------------------------------------------------ forgotPassword
+    // ------------------------------------------------------------------
+    // forgotPassword
     @Override
     @Transactional
     public void forgotPassword(ForgotPasswordRequest request) {
@@ -279,13 +290,15 @@ public class AuthServiceImpl implements AuthService {
         });
     }
 
-    // ------------------------------------------------------------------ resetPassword
+    // ------------------------------------------------------------------
+    // resetPassword
     @Override
     @Transactional
     public void resetPassword(ResetPasswordRequest request) {
         OtpToken otp = otpTokenRepository
                 .findByCodeAndTypeAndUsedFalse(request.getToken(), OtpType.PASSWORD_RESET)
-                .orElseThrow(() -> new AppException(AuthErrorCode.INVALID_OTP, "Liên kết đặt lại mật khẩu không hợp lệ hoặc đã được sử dụng"));
+                .orElseThrow(() -> new AppException(AuthErrorCode.INVALID_OTP,
+                        "Liên kết đặt lại mật khẩu không hợp lệ hoặc đã được sử dụng"));
 
         if (otp.isExpired()) {
             throw new AppException(AuthErrorCode.OTP_EXPIRED, "Liên kết đặt lại mật khẩu đã hết hạn");
@@ -396,9 +409,149 @@ public class AuthServiceImpl implements AuthService {
         refreshTokenRepository.revokeAllByUserId(userId);
     }
 
+    // ------------------------------------------------------------------ Flow A: Phone Verification
+    @Override
+    @Transactional
+    public void sendPhoneVerificationOtp(UUID userId, SendPhoneOtpRequest request) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new AppException(AuthErrorCode.USER_NOT_FOUND, "Người dùng không tồn tại"));
+
+        if (Boolean.TRUE.equals(user.getPhoneVerified())
+                && request.getPhoneNumber().equals(user.getPhoneNumber())) {
+            throw new AppException(AuthErrorCode.PHONE_ALREADY_VERIFIED, "Số điện thoại này đã được xác thực");
+        }
+
+        // Kiểm tra phone đã thuộc user khác chưa
+        userRepository.findByPhoneNumber(request.getPhoneNumber()).ifPresent(other -> {
+            if (!other.getId().equals(userId)) {
+                throw new AppException(AuthErrorCode.PHONE_ALREADY_TAKEN, "Số điện thoại đã được sử dụng bởi tài khoản khác");
+            }
+        });
+
+        checkOtpRateLimit(userId, OtpType.PHONE_VERIFY);
+
+        otpTokenRepository.invalidateAllUnusedByUserIdAndType(userId, OtpType.PHONE_VERIFY);
+        String code = generateNumericOtp();
+        OtpToken otp = OtpToken.of(userId, code, OtpType.PHONE_VERIFY, PHONE_OTP_TTL_MINUTES);
+        otpTokenRepository.save(otp);
+
+        eventPublisher.publish(new PhoneVerificationOtpMailEvent(user.getEmail(), code));
+        log.info("[Auth] Phone verification OTP sent to email for userId={}", userId);
+    }
+
+    @Override
+    @Transactional
+    public void verifyPhoneOtp(UUID userId, VerifyPhoneOtpRequest request) {
+        OtpToken otp = otpTokenRepository
+                .findTopByUserIdAndTypeAndUsedFalseOrderByCreatedAtDesc(userId, OtpType.PHONE_VERIFY)
+                .orElseThrow(() -> new AppException(AuthErrorCode.INVALID_OTP, "Mã OTP không hợp lệ hoặc đã được sử dụng"));
+
+        if (otp.isExpired()) {
+            throw new AppException(AuthErrorCode.OTP_EXPIRED, "Mã OTP đã hết hạn");
+        }
+        if (!otp.getCode().equals(request.getOtpCode())) {
+            throw new AppException(AuthErrorCode.INVALID_OTP, "Mã OTP không chính xác");
+        }
+
+        otp.setUsed(true);
+        otpTokenRepository.save(otp);
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new AppException(AuthErrorCode.USER_NOT_FOUND, "Người dùng không tồn tại"));
+        user.setPhoneNumber(request.getPhoneNumber());
+        user.setPhoneVerified(true);
+        userRepository.save(user);
+        log.info("[Auth] Phone verified for userId={}, phone={}", userId, maskPhone(request.getPhoneNumber()));
+    }
+
+    // ------------------------------------------------------------------ Flow C: Login OTP
+    @Override
+    @Transactional
+    public void sendLoginOtp(SendLoginOtpRequest request) {
+        // Anti-enumeration: silent return nếu email không tồn tại
+        userRepository.findByEmail(request.getEmail()).ifPresent(user -> {
+            if (!Boolean.TRUE.equals(user.getEmailVerified())) {
+                log.debug("[Auth] Login OTP skipped: email not verified userId={}", user.getId());
+                return;
+            }
+            if (!UserStatuses.ACTIVE.equalsIgnoreCase(user.getStatus())) {
+                log.debug("[Auth] Login OTP skipped: account not active userId={}", user.getId());
+                return;
+            }
+
+            checkOtpRateLimit(user.getId(), OtpType.LOGIN_OTP);
+
+            otpTokenRepository.invalidateAllUnusedByUserIdAndType(user.getId(), OtpType.LOGIN_OTP);
+            String code = generateNumericOtp();
+            OtpToken otp = OtpToken.of(user.getId(), code, OtpType.LOGIN_OTP, LOGIN_OTP_TTL_MINUTES);
+            otpTokenRepository.save(otp);
+
+            eventPublisher.publish(new LoginOtpMailEvent(user.getEmail(), code));
+            log.info("[Auth] Login OTP sent to email for userId={}", user.getId());
+        });
+    }
+
+    @Override
+    @Transactional
+    public AuthResponse loginWithOtp(LoginOtpRequest request, String ipAddress, String userAgent) {
+        User user = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new AppException(AuthErrorCode.INVALID_OTP, "Email hoặc mã OTP không đúng"));
+
+        if (!Boolean.TRUE.equals(user.getEmailVerified())) {
+            throw new AppException(AuthErrorCode.EMAIL_NOT_VERIFIED, "Vui lòng xác minh email trước khi đăng nhập");
+        }
+        if (!UserStatuses.ACTIVE.equalsIgnoreCase(user.getStatus())) {
+            throw new AppException(AuthErrorCode.ACCOUNT_DISABLED, "Tài khoản đã bị vô hiệu hóa");
+        }
+
+        OtpToken otp = otpTokenRepository
+                .findTopByUserIdAndTypeAndUsedFalseOrderByCreatedAtDesc(user.getId(), OtpType.LOGIN_OTP)
+                .orElseThrow(() -> new AppException(AuthErrorCode.INVALID_OTP, "Email hoặc mã OTP không đúng"));
+
+        if (otp.isExpired()) {
+            throw new AppException(AuthErrorCode.OTP_EXPIRED, "Mã OTP đã hết hạn");
+        }
+        if (!otp.getCode().equals(request.getOtpCode())) {
+            throw new AppException(AuthErrorCode.INVALID_OTP, "Email hoặc mã OTP không đúng");
+        }
+
+        otp.setUsed(true);
+        otpTokenRepository.save(otp);
+
+        List<String> roles = user.getUserRoles().stream()
+                .map(ur -> ur.getRole().getName())
+                .toList();
+        UserProfileResponse profile = userService.getProfile(user.getId());
+
+        log.info("[Auth] User logged in via OTP: {}", user.getEmail());
+        return buildAuthResponse(user, roles, profile, ipAddress, userAgent);
+    }
+
     // ------------------------------------------------------------------ helpers
+
+    private void checkOtpRateLimit(UUID userId, OtpType type) {
+        long count = otpTokenRepository.countByUserIdAndTypeAndCreatedAtAfter(
+                userId, type, Instant.now().minusSeconds(3600));
+        if (count >= MAX_OTP_PER_HOUR) {
+            throw new AppException(AuthErrorCode.OTP_RATE_LIMITED,
+                    "Bạn đã gửi quá nhiều mã OTP. Vui lòng thử lại sau.");
+        }
+    }
+
+    private String generateNumericOtp() {
+        StringBuilder sb = new StringBuilder(OTP_NUMERIC_LENGTH);
+        for (int i = 0; i < OTP_NUMERIC_LENGTH; i++) {
+            sb.append(RANDOM.nextInt(10));
+        }
+        return sb.toString();
+    }
+
+    private static String maskPhone(String phone) {
+        if (phone == null || phone.length() < 6) return "***";
+        return phone.substring(0, phone.length() - 4) + "****";
+    }
     private AuthResponse buildAuthResponse(User user, List<String> roles, UserProfileResponse profile,
-                                           String ipAddress, String userAgent) {
+            String ipAddress, String userAgent) {
         String accessToken = jwtService.generateAccessToken(user.getId(), roles);
         String rawRefreshToken = jwtService.generateRefreshToken();
 
@@ -408,8 +561,7 @@ public class AuthServiceImpl implements AuthService {
                 jwtService.getRefreshTokenExpiry(),
                 ipAddress,
                 userAgent,
-                toDeviceInfo(userAgent)
-        );
+                toDeviceInfo(userAgent));
         refreshTokenRepository.save(refreshToken);
 
         return AuthResponse.builder()
@@ -480,4 +632,3 @@ public class AuthServiceImpl implements AuthService {
         return compact.length() > 255 ? compact.substring(0, 255) : compact;
     }
 }
-
