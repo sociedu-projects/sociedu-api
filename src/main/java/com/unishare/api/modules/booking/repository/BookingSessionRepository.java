@@ -24,4 +24,7 @@ public interface BookingSessionRepository extends JpaRepository<BookingSession, 
                         @org.springframework.data.repository.query.Param("sessionId") UUID sessionId,
                         @org.springframework.data.repository.query.Param("start") java.time.Instant start,
                         @org.springframework.data.repository.query.Param("end") java.time.Instant end);
+
+    @Query("SELECT COUNT(s) FROM BookingSession s WHERE s.bookingId = :bookingId AND s.status != 'completed' AND s.status != 'canceled'")
+    long countUncompletedSessionsByBookingId(@org.springframework.data.repository.query.Param("bookingId") UUID bookingId);
 }

@@ -147,32 +147,44 @@ public class BookingServiceImpl implements BookingService {
         }
 
         if (req.getStatus() != null && !s.getStatus().equals(req.getStatus())) {
-            // Mentor can start and complete, but maybe buyer can cancel/no-show later.
             try {
                 com.unishare.api.modules.booking.policy.SessionStatusTransitionPolicy.validateTransition(s.getStatus(), req.getStatus());
             } catch (IllegalStateException e) {
                 throw new AppException(BookingErrorCode.INVALID_STATE_TRANSITION, e.getMessage());
             }
-            s.setStatus(req.getStatus());
             
             if (SessionStatuses.COMPLETED.equals(req.getStatus())) {
-                s.setActualEndedAt(Instant.now());
-                if (s.getActualStartedAt() == null) {
-                    s.setActualStartedAt(s.getScheduledAt() != null ? s.getScheduledAt() : Instant.now());
+                // Validation: now >= scheduledAt + minimumDuration (e.g. 15 mins)
+                if (s.getScheduledAt() != null) {
+                    Instant minCompletionTime = s.getScheduledAt().plus(Duration.ofMinutes(15));
+                    if (Instant.now().isBefore(minCompletionTime)) {
+                        throw new AppException(BookingErrorCode.INVALID_STATE_TRANSITION, "Không thể hoàn thành buổi học trước thời gian tối thiểu.");
+                    }
                 }
+                if (s.getActualStartedAt() == null) {
+                    throw new AppException(BookingErrorCode.INVALID_STATE_TRANSITION, "Phải bắt đầu buổi học (IN_PROGRESS) trước khi hoàn thành.");
+                }
+                
+                s.setStatus(SessionStatuses.COMPLETED);
+                s.setActualEndedAt(Instant.now());
+                s.setCompletedAt(Instant.now());
+                
             } else if (com.unishare.api.modules.booking.policy.SessionStatusTransitionPolicy.IN_PROGRESS.equals(req.getStatus())) {
+                s.setStatus(req.getStatus());
                 s.setActualStartedAt(Instant.now());
                 
-                // Auto-transition booking to IN_PROGRESS
                 if (BookingStatuses.PENDING.equals(b.getStatus()) || BookingStatuses.SCHEDULED.equals(b.getStatus())) {
                     com.unishare.api.modules.booking.policy.BookingStatusTransitionPolicy.validateTransition(b.getStatus(), BookingStatuses.IN_PROGRESS);
                     b.setStatus(BookingStatuses.IN_PROGRESS);
                     bookingRepository.save(b);
                 }
             } else if (SessionStatuses.CANCELED.equals(req.getStatus())) {
+                s.setStatus(req.getStatus());
                 s.setCanceledBy(actorUserId);
                 s.setCanceledAt(Instant.now());
                 s.setCancelReason("Canceled by user");
+            } else {
+                s.setStatus(req.getStatus());
             }
         }
 
@@ -187,7 +199,25 @@ public class BookingServiceImpl implements BookingService {
         }
 
         sessionRepository.save(s);
+        
+        // Aggregate completion check after saving session
+        if (SessionStatuses.COMPLETED.equals(s.getStatus())) {
+            checkAndCompleteBooking(b);
+        }
+        
         return mapSession(s);
+    }
+
+    private void checkAndCompleteBooking(Booking b) {
+        long uncompletedCount = sessionRepository.countUncompletedSessionsByBookingId(b.getId());
+        if (uncompletedCount == 0 && !BookingStatuses.COMPLETED.equals(b.getStatus())) {
+            com.unishare.api.modules.booking.policy.BookingStatusTransitionPolicy.validateTransition(b.getStatus(), BookingStatuses.COMPLETED);
+            b.setStatus(BookingStatuses.COMPLETED);
+            bookingRepository.save(b);
+            
+            eventPublisher.publish(new com.unishare.api.common.event.BookingCompletedEvent(
+                    b.getId(), b.getMentorId(), b.getBuyerId(), b.getOrderId()));
+        }
     }
 
     @Override

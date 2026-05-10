@@ -155,4 +155,46 @@ class BookingServiceImplTest {
         verify(bookingRepository).save(booking);
         verify(sessionRepository).save(session);
     }
+
+    @Test
+    void updateSession_ShouldThrowException_WhenCompletedBeforeMinimumDuration() {
+        session.setStatus(SessionStatusTransitionPolicy.IN_PROGRESS);
+        session.setScheduledAt(Instant.now().plus(10, ChronoUnit.MINUTES)); // Scheduled in the future somehow
+        
+        when(bookingRepository.findById(bookingId)).thenReturn(Optional.of(booking));
+        when(sessionRepository.findById(sessionId)).thenReturn(Optional.of(session));
+
+        UpdateSessionRequest req = new UpdateSessionRequest();
+        req.setStatus(SessionStatuses.COMPLETED);
+
+        AppException exception = assertThrows(AppException.class, () -> 
+            bookingService.updateSession(bookingId, sessionId, mentorId, req)
+        );
+
+        assertEquals(BookingErrorCode.INVALID_STATE_TRANSITION.getCode(), exception.getExceptionCode().getCode());
+        assertTrue(exception.getMessage().contains("Không thể hoàn thành buổi học trước thời gian tối thiểu"));
+    }
+
+    @Test
+    void updateSession_ShouldCompleteSessionAndBooking_WhenAllSessionsCompleted() {
+        booking.setStatus(BookingStatuses.IN_PROGRESS);
+        session.setStatus(SessionStatusTransitionPolicy.IN_PROGRESS);
+        session.setScheduledAt(Instant.now().minus(1, ChronoUnit.HOURS));
+        session.setActualStartedAt(Instant.now().minus(1, ChronoUnit.HOURS));
+        
+        when(bookingRepository.findById(bookingId)).thenReturn(Optional.of(booking));
+        when(sessionRepository.findById(sessionId)).thenReturn(Optional.of(session));
+        when(sessionRepository.countUncompletedSessionsByBookingId(bookingId)).thenReturn(0L);
+
+        UpdateSessionRequest req = new UpdateSessionRequest();
+        req.setStatus(SessionStatuses.COMPLETED);
+
+        bookingService.updateSession(bookingId, sessionId, mentorId, req);
+
+        assertEquals(SessionStatuses.COMPLETED, session.getStatus());
+        assertNotNull(session.getActualEndedAt());
+        assertEquals(BookingStatuses.COMPLETED, booking.getStatus());
+        
+        verify(eventPublisher).publish(any(com.unishare.api.common.event.BookingCompletedEvent.class));
+    }
 }
