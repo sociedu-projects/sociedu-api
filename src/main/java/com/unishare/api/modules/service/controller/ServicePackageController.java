@@ -47,8 +47,8 @@ public class ServicePackageController {
     @Operation(summary = "Danh sach goi dich vu dang mo (loc: mentorId, q ten/mo ta)")
     @GetMapping
     public ResponseEntity<ApiResponse<Page<ServicePackageResponse>>> getActivePackages(
-            @RequestParam(required = false) UUID mentorId,
-            @RequestParam(required = false) String q,
+            @RequestParam(value = "mentorId", required = false) UUID mentorId,
+            @RequestParam(value = "q", required = false) String q,
             Pageable pageable) {
         return ResponseEntity.ok(ApiResponse.<Page<ServicePackageResponse>>build()
                 .withData(catalogService.getActivePackages(mentorId, q, pageable)));
@@ -56,7 +56,7 @@ public class ServicePackageController {
 
     @Operation(summary = "Chi tiet goi dich vu dang mo")
     @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<ServicePackageResponse>> getActivePackage(@PathVariable UUID id) {
+    public ResponseEntity<ApiResponse<ServicePackageResponse>> getActivePackage(@PathVariable("id") UUID id) {
         return ResponseEntity.ok(ApiResponse.<ServicePackageResponse>build()
                 .withData(catalogService.getActivePackage(id)));
     }
@@ -79,7 +79,7 @@ public class ServicePackageController {
     @PostMapping("/{id}/versions")
     public ResponseEntity<ApiResponse<ServicePackageResponse>> createPackageVersion(
             @AuthenticationPrincipal CustomUserPrincipal principal,
-            @PathVariable UUID id,
+            @PathVariable("id") UUID id,
             @Valid @RequestBody CreateServicePackageVersionRequest request) {
         return ResponseEntity.ok(ApiResponse.<ServicePackageResponse>build()
                 .withData(catalogService.createPackageVersion(principal.getUserId(), id, request))
@@ -92,7 +92,7 @@ public class ServicePackageController {
     @GetMapping("/{id}/versions")
     public ResponseEntity<ApiResponse<Page<ServicePackageVersionResponse>>> getPackageVersions(
             @AuthenticationPrincipal CustomUserPrincipal principal,
-            @PathVariable UUID id,
+            @PathVariable("id") UUID id,
             Pageable pageable) {
         return ResponseEntity.ok(ApiResponse.<Page<ServicePackageVersionResponse>>build()
                 .withData(catalogService.getPackageVersions(principal.getUserId(), id, pageable)));
@@ -104,8 +104,8 @@ public class ServicePackageController {
     @GetMapping("/{id}/versions/{versionId}")
     public ResponseEntity<ApiResponse<ServicePackageVersionResponse>> getPackageVersion(
             @AuthenticationPrincipal CustomUserPrincipal principal,
-            @PathVariable UUID id,
-            @PathVariable UUID versionId) {
+            @PathVariable("id") UUID id,
+            @PathVariable("versionId") UUID versionId) {
         return ResponseEntity.ok(ApiResponse.<ServicePackageVersionResponse>build()
                 .withData(catalogService.getPackageVersion(principal.getUserId(), id, versionId)));
     }
@@ -116,8 +116,8 @@ public class ServicePackageController {
     @PostMapping("/{id}/versions/{versionId}/curriculums")
     public ResponseEntity<ApiResponse<CurriculumItemResponse>> createCurriculum(
             @AuthenticationPrincipal CustomUserPrincipal principal,
-            @PathVariable UUID id,
-            @PathVariable UUID versionId,
+            @PathVariable("id") UUID id,
+            @PathVariable("versionId") UUID versionId,
             @Valid @RequestBody CurriculumItemRequest request) {
         return ResponseEntity.ok(ApiResponse.<CurriculumItemResponse>build()
                 .withData(catalogService.addCurriculumItem(principal.getUserId(), id, versionId, request))
@@ -130,8 +130,8 @@ public class ServicePackageController {
     @GetMapping("/{id}/versions/{versionId}/curriculums")
     public ResponseEntity<ApiResponse<Page<CurriculumItemResponse>>> getCurriculums(
             @AuthenticationPrincipal CustomUserPrincipal principal,
-            @PathVariable UUID id,
-            @PathVariable UUID versionId,
+            @PathVariable("id") UUID id,
+            @PathVariable("versionId") UUID versionId,
             Pageable pageable) {
         return ResponseEntity.ok(ApiResponse.<Page<CurriculumItemResponse>>build()
                 .withData(catalogService.listCurriculum(principal.getUserId(), id, versionId, pageable)));
@@ -143,9 +143,9 @@ public class ServicePackageController {
     @PutMapping("/{id}/versions/{versionId}/curriculums/{curriculumId}")
     public ResponseEntity<ApiResponse<CurriculumItemResponse>> updateCurriculum(
             @AuthenticationPrincipal CustomUserPrincipal principal,
-            @PathVariable UUID id,
-            @PathVariable UUID versionId,
-            @PathVariable UUID curriculumId,
+            @PathVariable("id") UUID id,
+            @PathVariable("versionId") UUID versionId,
+            @PathVariable("curriculumId") UUID curriculumId,
             @Valid @RequestBody CurriculumItemRequest request) {
         return ResponseEntity.ok(ApiResponse.<CurriculumItemResponse>build()
                 .withData(catalogService.updateCurriculumItem(principal.getUserId(), id, versionId, curriculumId, request))
@@ -158,9 +158,9 @@ public class ServicePackageController {
     @DeleteMapping("/{id}/versions/{versionId}/curriculums/{curriculumId}")
     public ResponseEntity<ApiResponse<Void>> deleteCurriculum(
             @AuthenticationPrincipal CustomUserPrincipal principal,
-            @PathVariable UUID id,
-            @PathVariable UUID versionId,
-            @PathVariable UUID curriculumId) {
+            @PathVariable("id") UUID id,
+            @PathVariable("versionId") UUID versionId,
+            @PathVariable("curriculumId") UUID curriculumId) {
         catalogService.deleteCurriculumItem(principal.getUserId(), id, versionId, curriculumId);
         return ResponseEntity.ok(ApiResponse.<Void>build()
                 .withMessage("Xoa curriculum thanh cong"));
@@ -172,7 +172,7 @@ public class ServicePackageController {
     @PutMapping("/{id}")
     public ResponseEntity<ApiResponse<ServicePackageResponse>> updatePackage(
             @AuthenticationPrincipal CustomUserPrincipal principal,
-            @PathVariable UUID id,
+            @PathVariable("id") UUID id,
             @Valid @RequestBody UpdateServicePackageRequest request) {
         return ResponseEntity.ok(ApiResponse.<ServicePackageResponse>build()
                 .withData(catalogService.updatePackage(principal.getUserId(), id, request))
@@ -185,7 +185,7 @@ public class ServicePackageController {
     @PatchMapping("/{id}/toggle")
     public ResponseEntity<ApiResponse<ServicePackageResponse>> togglePackage(
             @AuthenticationPrincipal CustomUserPrincipal principal,
-            @PathVariable UUID id) {
+            @PathVariable("id") UUID id) {
         return ResponseEntity.ok(ApiResponse.<ServicePackageResponse>build()
                 .withData(catalogService.togglePackage(principal.getUserId(), id))
                 .withMessage("Cap nhat trang thai goi dich vu thanh cong"));
@@ -197,7 +197,7 @@ public class ServicePackageController {
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Void>> deletePackage(
             @AuthenticationPrincipal CustomUserPrincipal principal,
-            @PathVariable UUID id) {
+            @PathVariable("id") UUID id) {
         catalogService.deletePackage(principal.getUserId(), id);
         return ResponseEntity.ok(ApiResponse.<Void>build()
                 .withMessage("Xoa goi dich vu thanh cong"));
