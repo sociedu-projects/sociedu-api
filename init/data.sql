@@ -5,7 +5,7 @@
 INSERT INTO roles (id, name)
 VALUES ('f93d94ef-1fe8-48c4-b240-d9b1001affb1', 'USER'),
        ('d7af84b1-731d-48dc-bcd6-cebe8e78b279', 'MENTOR'),
-       ('29056341-f10b-4d2c-bb32-c6b82cf897bb', 'ADMIN');
+       ('29056341-f10b-4d2c-bb32-c6b82cf897bb', 'ADMIN');universities
 
 INSERT INTO capabilities (name)
 VALUES

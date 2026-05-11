@@ -68,6 +68,11 @@ app:
       - "http://localhost:3001"
       - "http://127.0.0.1:3001"
       - "http://localhost:5174"
+      - "http://localhost:8081"
+      - "http://localhost:9992"
+      - "http://localhost:8082"
+      - "http://127.0.0.1:8081"
+      - "http://127.0.0.1:8082"
       - "https://1g3l4zm9-9992.asse.devtunnels.ms"
       - "${APP_FRONTEND_BASE_URL}"
   logging:
