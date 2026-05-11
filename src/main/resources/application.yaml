@@ -91,7 +91,8 @@ vnpay:
   hash-secret: ${VNP_HASH_SECRET}
   url: ${VNP_URL}
   # Mặc định: callback BE sau thanh toán — nối từ app.urls.api-public-base (chỉnh một chỗ). Ghi đè: VNP_RETURN_URL
-  return-url: ${VNP_RETURN_URL:${app.urls.api-public-base}/payments/vnpay/return}
+  return-url: ${VNP_RETURN_URL:${app.urls.api-public-base}/api/v1/payments/vnpay/return}
+  frontend-return-url: ${VNP_FRONTEND_RETURN_URL:${app.urls.frontend-base}/payment-result}
 
 # OpenAPI / Swagger UI — tắt trên prod: springdoc.swagger-ui.enabled=false và springdoc.api-docs.enabled=false
 springdoc:
