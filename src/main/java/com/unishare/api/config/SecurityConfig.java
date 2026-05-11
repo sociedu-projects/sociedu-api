@@ -50,6 +50,8 @@ public class SecurityConfig {
             "/api/v1/auth/reset-password",
             "/api/v1/auth/verify-email",
             "/api/v1/auth/resend-verification",
+            "/api/v1/auth/otp/send",
+            "/api/v1/auth/otp/login",
 
             "/api/v1/payments/vnpay/**",
 

@@ -1,0 +1,96 @@
+﻿> Task :compileJava UP-TO-DATE
+> Task :processResources UP-TO-DATE
+> Task :classes UP-TO-DATE
+
+> Task :compileTestJava
+D:\Projects\Sociedu\sociedu-api\src\test\java\com\unishare\api\modules\service\controller\MentorControllerPageableTest.java:34: error: incompatible types: inference variable T has incompatible bounds
+                mentorProfileService = Mockito.mock(CatalogService.class);
+                                                   ^
+    equality constraints: CatalogService
+    lower bounds: MentorService,Object
+  where T is a type-variable:
+    T extends Object declared in method <T>mock(Class<T>)
+D:\Projects\Sociedu\sociedu-api\src\test\java\com\unishare\api\modules\service\controller\MentorPackagesPageableTest.java:47: error: cannot find symbol
+                when(catalogService.getMentorPackages(eq(mentorId), isNull(), eq(PageRequest.of(1, 5))))
+                                                                    ^
+  symbol:   method isNull()
+  location: class MentorPackagesPageableTest
+D:\Projects\Sociedu\sociedu-api\src\test\java\com\unishare\api\modules\service\controller\MentorProfileControllerTest.java:28: error: incompatible types: inference variable T has incompatible bounds
+        mentorProfileService = Mockito.mock(CatalogService.class);
+                                           ^
+    equality constraints: CatalogService
+    lower bounds: MentorService,Object
+  where T is a type-variable:
+    T extends Object declared in method <T>mock(Class<T>)
+D:\Projects\Sociedu\sociedu-api\src\test\java\com\unishare\api\modules\service\controller\MyMentorPackagesPageableTest.java:53: error: cannot find symbol
+                when(catalogService.getMyPackages(eq(mentorId), isNull(), eq(pageable)))
+                                                                ^
+  symbol:   method isNull()
+  location: class MyMentorPackagesPageableTest
+D:\Projects\Sociedu\sociedu-api\src\test\java\com\unishare\api\modules\service\controller\ServicePackageControllerPageableTest.java:46: error: cannot find symbol
+                when(catalogService.getActivePackages(isNull(), isNull(), eq(PageRequest.of(1, 5))))
+                                                      ^
+  symbol:   method isNull()
+  location: class ServicePackageControllerPageableTest
+D:\Projects\Sociedu\sociedu-api\src\test\java\com\unishare\api\modules\service\controller\ServicePackageControllerPageableTest.java:46: error: cannot find symbol
+                when(catalogService.getActivePackages(isNull(), isNull(), eq(PageRequest.of(1, 5))))
+                                                                ^
+  symbol:   method isNull()
+  location: class ServicePackageControllerPageableTest
+Note: D:\Projects\Sociedu\sociedu-api\src\test\java\com\unishare\api\modules\service\service\impl\CatalogServiceImplTest.java uses unchecked or unsafe operations.
+Note: Recompile with -Xlint:unchecked for details.
+6 errors
+
+> Task :compileTestJava FAILED
+
+[Incubating] Problems report is available at: file:///D:/Projects/Sociedu/sociedu-api/build/reports/problems/problems-report.html
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':compileTestJava'.
+> Compilation failed; see the compiler output below.
+  D:\Projects\Sociedu\sociedu-api\src\test\java\com\unishare\api\modules\service\controller\MentorControllerPageableTest.java:34: error: incompatible types: inference variable T has incompatible bounds
+                  mentorProfileService = Mockito.mock(CatalogService.class);
+                                                     ^
+      equality constraints: CatalogService
+      lower bounds: MentorService,Object
+    where T is a type-variable:
+      T extends Object declared in method <T>mock(Class<T>)
+  D:\Projects\Sociedu\sociedu-api\src\test\java\com\unishare\api\modules\service\controller\MentorProfileControllerTest.java:28: error: incompatible types: inference variable T has incompatible bounds
+          mentorProfileService = Mockito.mock(CatalogService.class);
+                                             ^
+      equality constraints: CatalogService
+      lower bounds: MentorService,Object
+    where T is a type-variable:
+      T extends Object declared in method <T>mock(Class<T>)
+  Note: D:\Projects\Sociedu\sociedu-api\src\test\java\com\unishare\api\modules\service\service\impl\CatalogServiceImplTest.java uses unchecked or unsafe operations.
+  Note: Recompile with -Xlint:unchecked for details.
+  D:\Projects\Sociedu\sociedu-api\src\test\java\com\unishare\api\modules\service\controller\MentorPackagesPageableTest.java:47: error: cannot find symbol
+                  when(catalogService.getMentorPackages(eq(mentorId), isNull(), eq(PageRequest.of(1, 5))))
+                                                                      ^
+    symbol:   method isNull()
+    location: class MentorPackagesPageableTest
+  D:\Projects\Sociedu\sociedu-api\src\test\java\com\unishare\api\modules\service\controller\MyMentorPackagesPageableTest.java:53: error: cannot find symbol
+                  when(catalogService.getMyPackages(eq(mentorId), isNull(), eq(pageable)))
+                                                                  ^
+    symbol:   method isNull()
+    location: class MyMentorPackagesPageableTest
+  D:\Projects\Sociedu\sociedu-api\src\test\java\com\unishare\api\modules\service\controller\ServicePackageControllerPageableTest.java:46: error: cannot find symbol
+                  when(catalogService.getActivePackages(isNull(), isNull(), eq(PageRequest.of(1, 5))))
+                                                        ^
+    symbol:   method isNull()
+    location: class ServicePackageControllerPageableTest
+  D:\Projects\Sociedu\sociedu-api\src\test\java\com\unishare\api\modules\service\controller\ServicePackageControllerPageableTest.java:46: error: cannot find symbol
+                  when(catalogService.getActivePackages(isNull(), isNull(), eq(PageRequest.of(1, 5))))
+                                                                  ^
+    symbol:   method isNull()
+    location: class ServicePackageControllerPageableTest
+  6 errors
+
+* Try:
+> Check your code and dependencies to fix the compilation error(s)
+> Run with --scan to get full insights from a Build Scan (powered by Develocity).
+
+BUILD FAILED in 9s
+3 actionable tasks: 1 executed, 2 up-to-date

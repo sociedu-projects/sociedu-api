@@ -9,7 +9,9 @@ import lombok.Getter;
 public enum BookingErrorCode implements ExceptionCode {
     BOOKING_NOT_FOUND(404, "BOOKING_NOT_FOUND"),
     BOOKING_ACCESS_DENIED(403, "BOOKING_ACCESS_DENIED"),
-    SESSION_NOT_FOUND(404, "SESSION_NOT_FOUND");
+    SESSION_NOT_FOUND(404, "SESSION_NOT_FOUND"),
+    INVALID_SCHEDULE_TIME(400, "INVALID_SCHEDULE_TIME"),
+    INVALID_STATE_TRANSITION(400, "INVALID_STATE_TRANSITION");
 
     private final Integer code;
     private final String type;

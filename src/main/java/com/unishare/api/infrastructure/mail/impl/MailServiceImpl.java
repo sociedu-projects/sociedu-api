@@ -150,6 +150,42 @@ public class MailServiceImpl implements MailService {
         return mailTemplateEngine.process("action-email", ctx);
     }
 
+    @Override
+    public void sendPhoneVerificationOtp(String toEmail, String otpCode) {
+        String subject = "[" + brandName + "] Mã xác thực số điện thoại";
+        String html = otpCard(
+                "Xác thực số điện thoại",
+                "Mã OTP để xác thực số điện thoại của bạn:",
+                otpCode);
+        sendHtmlEmail(toEmail, subject, html);
+    }
+
+    @Override
+    public void sendLoginOtp(String toEmail, String otpCode) {
+        String subject = "[" + brandName + "] Mã đăng nhập OTP";
+        String html = otpCard(
+                "Đăng nhập bằng OTP",
+                "Mã OTP để đăng nhập vào tài khoản của bạn:",
+                otpCode);
+        sendHtmlEmail(toEmail, subject, html);
+    }
+
+    /** Template HTML cho email chứa mã OTP lớn, dễ đọc trên mobile. */
+    private String otpCard(String title, String description, String otpCode) {
+        return """
+                <!DOCTYPE html><html><body style="font-family:Segoe UI,Roboto,sans-serif;background:#f1f5f9;padding:24px;">
+                <div style="max-width:520px;margin:auto;background:#fff;border-radius:12px;padding:28px;border:1px solid #e2e8f0;">
+                <h2 style="color:#4f46e5;margin:0 0 12px;">%s</h2>
+                <p style="color:#334155;line-height:1.6;margin:0 0 16px;">%s</p>
+                <div style="text-align:center;margin:20px 0;">
+                  <span style="display:inline-block;font-size:32px;font-weight:bold;letter-spacing:8px;color:#4f46e5;background:#f1f5f9;padding:12px 24px;border-radius:8px;border:2px dashed #4f46e5;">%s</span>
+                </div>
+                <p style="color:#64748b;font-size:13px;margin:0;">Mã có hiệu lực trong 5 phút. Không chia sẻ mã này với bất kỳ ai.</p>
+                <p style="color:#94a3b8;font-size:12px;margin-top:20px;">© %d %s</p>
+                </div></body></html>
+                """.formatted(title, description, otpCode, Year.now().getValue(), brandName);
+    }
+
     private void sendHtmlEmail(String to, String subject, String htmlBody) {
         try {
             MimeMessage message = mailSender.createMimeMessage();

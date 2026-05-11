@@ -40,6 +40,7 @@ public class MentorDto {
         private String name;
         private String description;
         private Boolean isActive;
+        private Boolean isArchived;
         private List<ServicePackageVersionResponse> versions;
     }
 

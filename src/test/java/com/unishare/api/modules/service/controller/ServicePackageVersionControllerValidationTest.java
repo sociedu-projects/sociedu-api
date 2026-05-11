@@ -3,7 +3,7 @@ package com.unishare.api.modules.service.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.unishare.api.config.GlobalExceptionHandler;
 import com.unishare.api.modules.service.dto.request.CreateServicePackageVersionRequest;
-import com.unishare.api.modules.service.service.MentorService;
+import com.unishare.api.modules.service.service.CatalogService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -23,18 +23,18 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class ServicePackageVersionControllerValidationTest {
 
     private MockMvc mockMvc;
-    private MentorService mentorService;
+    private CatalogService catalogService;
     private ObjectMapper objectMapper;
 
     @BeforeEach
     void setUp() {
-        mentorService = Mockito.mock(MentorService.class);
+        catalogService = Mockito.mock(CatalogService.class);
         objectMapper = new ObjectMapper();
 
         LocalValidatorFactoryBean validator = new LocalValidatorFactoryBean();
         validator.afterPropertiesSet();
 
-        mockMvc = MockMvcBuilders.standaloneSetup(new ServicePackageController(mentorService))
+        mockMvc = MockMvcBuilders.standaloneSetup(new ServicePackageController(catalogService))
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .setValidator(validator)
                 .build();
@@ -53,7 +53,7 @@ class ServicePackageVersionControllerValidationTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errors.fields.price").value("Giá version phải lớn hơn hoặc bằng 0"));
 
-        verifyNoInteractions(mentorService);
+        verifyNoInteractions(catalogService);
     }
 
     @Test
@@ -69,6 +69,6 @@ class ServicePackageVersionControllerValidationTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errors.fields.duration").value("Thời lượng version phải lớn hơn hoặc bằng 1"));
 
-        verifyNoInteractions(mentorService);
+        verifyNoInteractions(catalogService);
     }
 }

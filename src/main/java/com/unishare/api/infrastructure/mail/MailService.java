@@ -24,4 +24,10 @@ public interface MailService {
 
     /** Trigger: {@link com.unishare.api.common.event.MentorRejectedNotificationMailEvent}. */
     void sendMentorRejectedNotice(String toEmail, java.util.UUID requestId, String reason);
+
+    /** Trigger: {@link com.unishare.api.common.event.PhoneVerificationOtpMailEvent}. */
+    void sendPhoneVerificationOtp(String toEmail, String otpCode);
+
+    /** Trigger: {@link com.unishare.api.common.event.LoginOtpMailEvent}. */
+    void sendLoginOtp(String toEmail, String otpCode);
 }

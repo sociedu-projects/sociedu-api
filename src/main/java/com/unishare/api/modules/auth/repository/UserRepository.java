@@ -11,24 +11,31 @@ import java.util.UUID;
 
 public interface UserRepository extends JpaRepository<User, UUID> {
 
-    Optional<User> findByEmail(String email);
+        Optional<User> findByEmail(String email);
 
-    boolean existsByEmail(String email);
+        boolean existsByEmail(String email);
 
-    /** Tất cả user có role {@code roleName} (vd. {@link com.unishare.api.common.constants.Roles#MENTOR}). */
-    @Query("""
-            SELECT DISTINCT u FROM User u
-            JOIN FETCH u.userRoles ur
-            JOIN FETCH ur.role r
-            WHERE r.name = :roleName
-            """)
-    List<User> findAllWithRoleName(@Param("roleName") String roleName);
+        /**
+         * Tất cả user có role {@code roleName} (vd.
+         * {@link com.unishare.api.common.constants.Roles#MENTOR}).
+         */
+        @Query("""
+                        SELECT DISTINCT u FROM User u
+                        JOIN FETCH u.userRoles ur
+                        JOIN FETCH ur.role r
+                        WHERE r.name = :roleName
+                        """)
+        List<User> findAllWithRoleName(@Param("roleName") String roleName);
 
-    @Query("""
-            SELECT u FROM User u
-            JOIN FETCH u.userRoles ur
-            JOIN FETCH ur.role
-            WHERE u.id = :id
-            """)
-    Optional<User> findByIdWithRoles(@Param("id") UUID id);
+        @Query("""
+                        SELECT u FROM User u
+                        JOIN FETCH u.userRoles ur
+                        JOIN FETCH ur.role
+                        WHERE u.id = :id
+                        """)
+        Optional<User> findByIdWithRoles(@Param("id") UUID id);
+
+        Optional<User> findByPhoneNumber(String phoneNumber);
+
+        boolean existsByPhoneNumber(String phoneNumber);
 }

@@ -48,7 +48,7 @@ class MenteeReportControllerValidationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.errors.fields.mentorId").value("ID Mentor khÃ´ng Ä‘Æ°á»£c Ä‘á»ƒ trá»‘ng"));
+                .andExpect(jsonPath("$.errors.fields.mentorId").value("ID Mentor không được để trống"));
 
         verifyNoInteractions(progressReportService);
     }
@@ -62,7 +62,7 @@ class MenteeReportControllerValidationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.errors.fields.title").value("TiÃªu Ä‘á» khÃ´ng Ä‘Æ°á»£c Ä‘á»ƒ trá»‘ng"));
+                .andExpect(jsonPath("$.errors.fields.title").value("Tiêu đề không được để trống"));
 
         verifyNoInteractions(progressReportService);
     }
@@ -76,7 +76,7 @@ class MenteeReportControllerValidationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.errors.fields.content").value("Ná»™i dung bÃ¡o cÃ¡o khÃ´ng Ä‘Æ°á»£c Ä‘á»ƒ trá»‘ng"));
+                .andExpect(jsonPath("$.errors.fields.content").value("Nội dung báo cáo không được để trống"));
 
         verifyNoInteractions(progressReportService);
     }

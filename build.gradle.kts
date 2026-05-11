@@ -54,6 +54,9 @@ dependencies {
 	testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
+tasks.named<JavaCompile>("compileTestJava") {
+}
+
 tasks.withType<Test> {
 	useJUnitPlatform()
 	jvmArgs("-Duser.timezone=UTC")

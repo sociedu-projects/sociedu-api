@@ -3,7 +3,7 @@ package com.unishare.api.modules.service.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.unishare.api.config.GlobalExceptionHandler;
 import com.unishare.api.modules.service.dto.request.UpdateServicePackageRequest;
-import com.unishare.api.modules.service.service.MentorService;
+import com.unishare.api.modules.service.service.CatalogService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -22,18 +22,18 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class ServicePackageControllerValidationTest {
 
     private MockMvc mockMvc;
-    private MentorService mentorService;
+    private CatalogService catalogService;
     private ObjectMapper objectMapper;
 
     @BeforeEach
     void setUp() {
-        mentorService = Mockito.mock(MentorService.class);
+        catalogService = Mockito.mock(CatalogService.class);
         objectMapper = new ObjectMapper();
 
         LocalValidatorFactoryBean validator = new LocalValidatorFactoryBean();
         validator.afterPropertiesSet();
 
-        mockMvc = MockMvcBuilders.standaloneSetup(new ServicePackageController(mentorService))
+        mockMvc = MockMvcBuilders.standaloneSetup(new ServicePackageController(catalogService))
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .setValidator(validator)
                 .build();
@@ -51,6 +51,6 @@ class ServicePackageControllerValidationTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errors.fields.name").value("Tên gói dịch vụ không được để trống"));
 
-        verifyNoInteractions(mentorService);
+        verifyNoInteractions(catalogService);
     }
 }

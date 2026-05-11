@@ -2,11 +2,13 @@ package com.unishare.api.infrastructure.mail.listener;
 
 import com.unishare.api.common.event.BookingCreatedNotificationMailEvent;
 import com.unishare.api.common.event.EmailVerificationMailEvent;
+import com.unishare.api.common.event.LoginOtpMailEvent;
 import com.unishare.api.common.event.MentorApprovedNotificationMailEvent;
 import com.unishare.api.common.event.MentorRejectedNotificationMailEvent;
 import com.unishare.api.common.event.OrderPaidNotificationMailEvent;
 import com.unishare.api.common.event.OrderPaymentFailedNotificationMailEvent;
 import com.unishare.api.common.event.PasswordResetMailEvent;
+import com.unishare.api.common.event.PhoneVerificationOtpMailEvent;
 import com.unishare.api.infrastructure.mail.MailService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -67,5 +69,17 @@ public class MailDispatchListener {
     @Async
     public void onMentorRejectedNotification(MentorRejectedNotificationMailEvent event) {
         mailService.sendMentorRejectedNotice(event.toEmail(), event.requestId(), event.reason());
+    }
+
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @Async
+    public void onPhoneVerificationOtpMail(PhoneVerificationOtpMailEvent event) {
+        mailService.sendPhoneVerificationOtp(event.toEmail(), event.otpCode());
+    }
+
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @Async
+    public void onLoginOtpMail(LoginOtpMailEvent event) {
+        mailService.sendLoginOtp(event.toEmail(), event.otpCode());
     }
 }

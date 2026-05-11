@@ -40,4 +40,20 @@ public interface AuthService {
     void revokeSession(UUID userId, UUID sessionId);
 
     void revokeAllSessions(UUID userId);
+
+    // ---- Flow A: Xác thực số điện thoại (Authenticated) ----
+
+    /** Gửi OTP tới email user để xác thực số điện thoại. */
+    void sendPhoneVerificationOtp(UUID userId, SendPhoneOtpRequest request);
+
+    /** Xác thực OTP → gắn phoneNumber vào tài khoản. */
+    void verifyPhoneOtp(UUID userId, VerifyPhoneOtpRequest request);
+
+    // ---- Flow C: Đăng nhập bằng email OTP (Public) ----
+
+    /** Gửi OTP đăng nhập tới email. */
+    void sendLoginOtp(SendLoginOtpRequest request);
+
+    /** Đăng nhập bằng email + OTP. */
+    AuthResponse loginWithOtp(LoginOtpRequest request, String ipAddress, String userAgent);
 }

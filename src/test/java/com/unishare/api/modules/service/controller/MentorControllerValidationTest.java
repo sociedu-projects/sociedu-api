@@ -3,7 +3,7 @@ package com.unishare.api.modules.service.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.unishare.api.config.GlobalExceptionHandler;
 import com.unishare.api.modules.service.dto.request.CreateServicePackageRequest;
-import com.unishare.api.modules.service.service.MentorService;
+import com.unishare.api.modules.service.service.CatalogService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -23,18 +23,18 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class MentorControllerValidationTest {
 
     private MockMvc mockMvc;
-    private MentorService mentorService;
+    private CatalogService catalogService;
     private ObjectMapper objectMapper;
 
     @BeforeEach
     void setUp() {
-        mentorService = Mockito.mock(MentorService.class);
+        catalogService = Mockito.mock(CatalogService.class);
         objectMapper = new ObjectMapper();
 
         LocalValidatorFactoryBean validator = new LocalValidatorFactoryBean();
         validator.afterPropertiesSet();
 
-        mockMvc = MockMvcBuilders.standaloneSetup(new MentorController(mentorService))
+        mockMvc = MockMvcBuilders.standaloneSetup(new MentorCatalogController(catalogService))
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .setValidator(validator)
                 .build();
@@ -51,7 +51,7 @@ class MentorControllerValidationTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errors.fields.curriculums").value("Danh sách curriculum không được để trống"));
 
-        verifyNoInteractions(mentorService);
+        verifyNoInteractions(catalogService);
     }
 
     @Test
@@ -65,7 +65,7 @@ class MentorControllerValidationTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errors.fields.price").value("Giá gói dịch vụ phải lớn hơn hoặc bằng 0"));
 
-        verifyNoInteractions(mentorService);
+        verifyNoInteractions(catalogService);
     }
 
     @Test
@@ -79,7 +79,7 @@ class MentorControllerValidationTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errors.fields.duration").value("Thời lượng gói dịch vụ phải lớn hơn hoặc bằng 1"));
 
-        verifyNoInteractions(mentorService);
+        verifyNoInteractions(catalogService);
     }
 
     private CreateServicePackageRequest validRequest() {

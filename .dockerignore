@@ -15,4 +15,4 @@ src/test/
 
 # Local env
 .env
-.env.*
+.env

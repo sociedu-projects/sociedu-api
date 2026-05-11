@@ -43,6 +43,24 @@ public class BookingSession {
     @Column(name = "created_at")
     private Instant createdAt;
 
+    @Column(name = "actual_started_at")
+    private Instant actualStartedAt;
+
+    @Column(name = "actual_ended_at")
+    private Instant actualEndedAt;
+
+    @Column(name = "canceled_by")
+    private UUID canceledBy;
+
+    @Column(name = "canceled_at")
+    private Instant canceledAt;
+
+    @Column(name = "cancel_reason", columnDefinition = "TEXT")
+    private String cancelReason;
+
+    @Version
+    private Long version;
+
     @PrePersist
     public void prePersist() {
         this.createdAt = Instant.now();
