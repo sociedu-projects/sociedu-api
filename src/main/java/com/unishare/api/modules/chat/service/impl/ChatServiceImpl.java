@@ -7,6 +7,7 @@ import com.unishare.api.modules.chat.entity.Conversation;
 import com.unishare.api.modules.chat.entity.ConversationParticipant;
 import com.unishare.api.modules.chat.entity.ConversationParticipantId;
 import com.unishare.api.modules.chat.entity.MessageAttachment;
+import com.unishare.api.modules.chat.event.ChatMessageSentEvent;
 import com.unishare.api.modules.chat.exception.ChatErrorCode;
 import com.unishare.api.modules.chat.repository.ChatMessageRepository;
 import com.unishare.api.modules.chat.repository.ConversationParticipantRepository;
@@ -14,6 +15,7 @@ import com.unishare.api.modules.chat.repository.ConversationRepository;
 import com.unishare.api.modules.chat.repository.MessageAttachmentRepository;
 import com.unishare.api.modules.chat.service.ChatService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,6 +33,7 @@ public class ChatServiceImpl implements ChatService {
     private final ConversationParticipantRepository participantRepository;
     private final ChatMessageRepository messageRepository;
     private final MessageAttachmentRepository attachmentRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     @Transactional
@@ -90,7 +93,12 @@ public class ChatServiceImpl implements ChatService {
                 attachmentRepository.save(a);
             }
         }
-        return toMessageResponse(m);
+        ChatMessageResponse response = toMessageResponse(m);
+        eventPublisher.publishEvent(ChatMessageSentEvent.builder()
+                .conversationId(conversationId)
+                .message(response)
+                .build());
+        return response;
     }
 
     private void assertParticipant(UUID conversationId, UUID userId) {

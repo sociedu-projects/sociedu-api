@@ -1,3 +1,62 @@
+ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS email_verified BOOLEAN DEFAULT FALSE,
+    ADD COLUMN IF NOT EXISTS phone_verified BOOLEAN DEFAULT FALSE,
+    ADD COLUMN IF NOT EXISTS date_of_birth DATE;
+
+ALTER TABLE users
+    ALTER COLUMN status TYPE VARCHAR(50)
+    USING CASE status::TEXT
+        WHEN '0' THEN 'pending'
+        WHEN '1' THEN 'active'
+        WHEN '2' THEN 'suspended'
+        WHEN '3' THEN 'deleted'
+        ELSE status::TEXT
+    END;
+
+UPDATE users
+SET status = 'pending'
+WHERE status IS NULL;
+
+ALTER TABLE refresh_tokens
+    ADD COLUMN IF NOT EXISTS last_used_at TIMESTAMP DEFAULT NOW(),
+    ADD COLUMN IF NOT EXISTS replaced_by_id UUID,
+    ADD COLUMN IF NOT EXISTS device_info VARCHAR(255),
+    ADD COLUMN IF NOT EXISTS ip_address VARCHAR(64),
+    ADD COLUMN IF NOT EXISTS user_agent VARCHAR(512);
+
+UPDATE refresh_tokens
+SET last_used_at = created_at
+WHERE last_used_at IS NULL;
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_refresh_tokens_token
+    ON refresh_tokens (token);
+
+ALTER TABLE otp_tokens
+    ALTER COLUMN code TYPE VARCHAR(128),
+    ALTER COLUMN type TYPE VARCHAR(50)
+    USING CASE type::TEXT
+        WHEN '0' THEN 'email_verification'
+        WHEN '1' THEN 'password_reset'
+        WHEN '2' THEN 'phone_login'
+        ELSE type::TEXT
+    END;
+
+ALTER TABLE user_profiles
+    ADD COLUMN IF NOT EXISTS headline VARCHAR(150),
+    ADD COLUMN IF NOT EXISTS location VARCHAR(255),
+    ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW();
+
+ALTER TABLE user_educations
+    ADD COLUMN IF NOT EXISTS degree VARCHAR(255),
+    ADD COLUMN IF NOT EXISTS start_date DATE,
+    ADD COLUMN IF NOT EXISTS end_date DATE,
+    ADD COLUMN IF NOT EXISTS is_current BOOLEAN DEFAULT FALSE,
+    ADD COLUMN IF NOT EXISTS description TEXT,
+    ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW();
+
+ALTER TABLE user_certificates
+    ADD COLUMN IF NOT EXISTS description TEXT;
+
 ALTER TABLE orders
     ADD COLUMN IF NOT EXISTS paid_at TIMESTAMP;
 
@@ -145,3 +204,95 @@ CREATE UNIQUE INDEX IF NOT EXISTS ux_payout_records_booking
 
 CREATE UNIQUE INDEX IF NOT EXISTS ux_payout_records_source_event
     ON payout_records (source_event_id);
+
+ALTER TABLE conversations
+    ALTER COLUMN type TYPE VARCHAR(50)
+    USING CASE type::TEXT
+        WHEN '0' THEN 'general'
+        WHEN '1' THEN 'booking'
+        ELSE type::TEXT
+    END;
+
+UPDATE conversations
+SET type = 'general'
+WHERE type IS NULL;
+
+ALTER TABLE conversations
+    ALTER COLUMN type SET NOT NULL;
+
+ALTER TABLE messages
+    ADD COLUMN IF NOT EXISTS type VARCHAR(50) DEFAULT 'text',
+    ADD COLUMN IF NOT EXISTS is_edited BOOLEAN DEFAULT FALSE,
+    ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP;
+
+UPDATE messages
+SET type = 'text'
+WHERE type IS NULL;
+
+ALTER TABLE messages
+    ALTER COLUMN type SET NOT NULL;
+
+ALTER TABLE message_attachments
+    ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW();
+
+ALTER TABLE reports
+    ADD COLUMN IF NOT EXISTS reason VARCHAR(255),
+    ADD COLUMN IF NOT EXISTS description TEXT,
+    ADD COLUMN IF NOT EXISTS resolved_at TIMESTAMP,
+    ADD COLUMN IF NOT EXISTS resolved_by UUID,
+    ADD COLUMN IF NOT EXISTS resolution_note TEXT;
+
+ALTER TABLE reports
+    ALTER COLUMN type TYPE VARCHAR(50)
+    USING type::TEXT,
+    ALTER COLUMN status TYPE VARCHAR(50)
+    USING CASE status::TEXT
+        WHEN '0' THEN 'open'
+        WHEN '1' THEN 'reviewing'
+        WHEN '2' THEN 'resolved'
+        WHEN '3' THEN 'rejected'
+        ELSE status::TEXT
+    END;
+
+UPDATE reports
+SET reason = 'legacy'
+WHERE reason IS NULL;
+
+UPDATE reports
+SET type = 'legacy'
+WHERE type IS NULL;
+
+UPDATE reports
+SET status = 'open'
+WHERE status IS NULL;
+
+ALTER TABLE reports
+    ALTER COLUMN reason SET NOT NULL,
+    ALTER COLUMN status SET NOT NULL;
+
+ALTER TABLE report_evidences
+    ADD COLUMN IF NOT EXISTS description VARCHAR(255),
+    ADD COLUMN IF NOT EXISTS uploaded_by UUID,
+    ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW();
+
+UPDATE report_evidences re
+SET uploaded_by = r.reporter_id
+FROM reports r
+WHERE re.uploaded_by IS NULL
+  AND re.report_id = r.id;
+
+CREATE TABLE IF NOT EXISTS disputes
+(
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    report_id       UUID REFERENCES reports (id),
+    booking_id      UUID REFERENCES bookings (id),
+    session_id      UUID REFERENCES booking_sessions (id),
+    raised_by       UUID NOT NULL REFERENCES users (id),
+    reason          VARCHAR(255) NOT NULL,
+    description     TEXT,
+    status          VARCHAR(50) NOT NULL DEFAULT 'open',
+    resolution_note TEXT,
+    created_at      TIMESTAMP DEFAULT NOW(),
+    resolved_at     TIMESTAMP,
+    resolved_by     UUID
+);

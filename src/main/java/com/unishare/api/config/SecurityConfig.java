@@ -59,6 +59,7 @@ public class SecurityConfig {
             "/swagger-ui/**",
             "/swagger-ui.html",
             "/error",
+            "/ws-chat/**",
 
             "/actuator/health"
     };

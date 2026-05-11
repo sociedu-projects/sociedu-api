@@ -28,15 +28,18 @@ CREATE TABLE role_capabilities
 
 CREATE TABLE users
 (
-    id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 
-    email        VARCHAR(255),
-    phone_number VARCHAR(20),
+    email          VARCHAR(255) UNIQUE,
+    email_verified BOOLEAN      DEFAULT FALSE,
+    phone_number   VARCHAR(20) UNIQUE,
+    phone_verified BOOLEAN      DEFAULT FALSE,
+    date_of_birth  DATE,
 
-    status       SMALLINT         DEFAULT 0, -- app define
+    status         VARCHAR(50)  DEFAULT 'pending',
 
-    created_at   TIMESTAMP        DEFAULT NOW(),
-    updated_at   TIMESTAMP        DEFAULT NOW()
+    created_at     TIMESTAMP    DEFAULT NOW(),
+    updated_at     TIMESTAMP    DEFAULT NOW()
 );
 
 CREATE INDEX idx_users_email ON users (email);
@@ -60,24 +63,30 @@ CREATE TABLE user_credentials
 -- ==========================================
 CREATE TABLE refresh_tokens
 (
-    id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id    UUID REFERENCES users (id) ON DELETE CASCADE,
-    token      VARCHAR(512),
-    expires_at TIMESTAMP,
-    revoked    BOOLEAN          DEFAULT FALSE,
-    created_at TIMESTAMP        DEFAULT NOW()
+    id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id        UUID         NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+    token          VARCHAR(512) NOT NULL UNIQUE,
+    expires_at     TIMESTAMP    NOT NULL,
+    revoked        BOOLEAN      DEFAULT FALSE,
+    created_at     TIMESTAMP    DEFAULT NOW(),
+    last_used_at   TIMESTAMP    DEFAULT NOW(),
+    replaced_by_id UUID,
+    device_info    VARCHAR(255),
+    ip_address     VARCHAR(64),
+    user_agent     VARCHAR(512)
 );
 
-CREATE INDEX idx_refresh_user ON refresh_tokens (user_id);
+CREATE INDEX idx_refresh_tokens_user ON refresh_tokens (user_id);
+CREATE UNIQUE INDEX idx_refresh_tokens_token ON refresh_tokens (token);
 
 CREATE TABLE otp_tokens
 (
     id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id    UUID REFERENCES users (id) ON DELETE CASCADE,
-    code       VARCHAR(6),
-    type       SMALLINT,
-    expires_at TIMESTAMP,
-    used       BOOLEAN          DEFAULT FALSE,
+    user_id    UUID         NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+    code       VARCHAR(128) NOT NULL,
+    type       VARCHAR(50)  NOT NULL,
+    expires_at TIMESTAMP    NOT NULL,
+    used       BOOLEAN      DEFAULT FALSE,
     created_at TIMESTAMP        DEFAULT NOW()
 );
 
@@ -86,18 +95,23 @@ CREATE TABLE otp_tokens
 -- ==========================================
 CREATE TABLE files
 (
-    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    uploader_id UUID REFERENCES users (id),
+    id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    uploader_id      UUID REFERENCES users (id),
 
-    file_name   VARCHAR(255),
-    file_url    TEXT,
-    mime_type   VARCHAR(100),
-    file_size   BIGINT,
+    file_name        VARCHAR(255) NOT NULL,
+    file_url         TEXT         NOT NULL,
+    public_id        TEXT,
+    resource_type    VARCHAR(20),
+    mime_type        VARCHAR(255) NOT NULL,
+    file_size        BIGINT       NOT NULL,
+    storage_provider VARCHAR(255) NOT NULL DEFAULT 'cloudinary',
+    visibility       VARCHAR(255)          DEFAULT 'private',
 
-    entity_type SMALLINT,
-    entity_id   UUID,
+    entity_type      VARCHAR(255),
+    entity_id        UUID,
+    deleted_at       TIMESTAMP,
 
-    created_at  TIMESTAMP        DEFAULT NOW()
+    created_at       TIMESTAMP             DEFAULT NOW()
 );
 
 CREATE INDEX idx_files_uploader ON files (uploader_id);
@@ -112,11 +126,14 @@ CREATE TABLE user_profiles
 
     first_name     VARCHAR(50),
     last_name      VARCHAR(50),
+    headline       VARCHAR(150),
 
     avatar_file_id UUID REFERENCES files (id),
 
     bio            TEXT,
-    created_at     TIMESTAMP DEFAULT NOW()
+    location       VARCHAR(255),
+    created_at     TIMESTAMP DEFAULT NOW(),
+    updated_at     TIMESTAMP DEFAULT NOW()
 );
 
 CREATE TABLE universities
@@ -134,16 +151,22 @@ CREATE TABLE fields_of_study
 CREATE TABLE user_educations
 (
     id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id       UUID REFERENCES users (id) ON DELETE CASCADE,
+    user_id       UUID NOT NULL REFERENCES users (id) ON DELETE CASCADE,
     university_id UUID REFERENCES universities (id),
-    major_id      UUID REFERENCES fields_of_study (id)
+    major_id      UUID REFERENCES fields_of_study (id),
+    degree        VARCHAR(255),
+    start_date    DATE,
+    end_date      DATE,
+    is_current    BOOLEAN DEFAULT FALSE,
+    description   TEXT,
+    created_at    TIMESTAMP DEFAULT NOW()
 );
 
 CREATE TABLE user_experiences
 (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 
-    user_id     UUID REFERENCES users (id) ON DELETE CASCADE,
+    user_id     UUID NOT NULL REFERENCES users (id) ON DELETE CASCADE,
 
     company     VARCHAR(255),
     position    VARCHAR(255),
@@ -163,7 +186,7 @@ CREATE TABLE user_certificates
 (
     id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 
-    user_id            UUID REFERENCES users (id) ON DELETE CASCADE,
+    user_id            UUID NOT NULL REFERENCES users (id) ON DELETE CASCADE,
 
     name               VARCHAR(255),
     organization       VARCHAR(255),
@@ -172,6 +195,7 @@ CREATE TABLE user_certificates
     expiration_date    DATE,
 
     credential_file_id UUID REFERENCES files (id),
+    description        TEXT,
 
     created_at         TIMESTAMP        DEFAULT NOW()
 );
@@ -234,39 +258,44 @@ CREATE INDEX idx_mentor_profiles_verification ON mentor_profiles (verification_s
 -- ==========================================
 CREATE TABLE service_packages
 (
-    id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-
-    -- identity của "package logic"
-    package_group_id UUID NOT NULL,
-
-    mentor_id        UUID REFERENCES users (id),
-
-    name             VARCHAR(255),
-
-    -- versioning
-    version          INT  NOT NULL,
-    is_active        BOOLEAN          DEFAULT TRUE,
-
-    -- business data
-    price            DECIMAL(19, 2),
-    duration         INT,
-
-    created_at       TIMESTAMP        DEFAULT NOW()
+    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    mentor_id   UUID         NOT NULL REFERENCES users (id),
+    name        VARCHAR(255) NOT NULL,
+    description TEXT,
+    is_active   BOOLEAN   DEFAULT TRUE,
+    created_at  TIMESTAMP DEFAULT NOW(),
+    updated_at  TIMESTAMP DEFAULT NOW(),
+    deleted_at  TIMESTAMP
 );
 
-CREATE INDEX idx_package_group ON service_packages (package_group_id);
 CREATE INDEX idx_package_mentor ON service_packages (mentor_id);
+
+CREATE TABLE service_package_versions
+(
+    id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    package_id    UUID           NOT NULL REFERENCES service_packages (id) ON DELETE CASCADE,
+    price         DECIMAL(19, 2) NOT NULL,
+    duration      INT            NOT NULL,
+    delivery_type VARCHAR(255),
+    is_default    BOOLEAN        DEFAULT TRUE,
+    created_at    TIMESTAMP      DEFAULT NOW()
+);
+
+CREATE INDEX idx_service_package_versions_package ON service_package_versions (package_id);
+CREATE INDEX idx_service_package_versions_default ON service_package_versions (package_id, is_default);
 
 CREATE TABLE package_curriculums
 (
     id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    package_id UUID         NOT NULL REFERENCES service_packages (id) ON DELETE CASCADE,
+    package_version_id UUID         NOT NULL REFERENCES service_package_versions (id) ON DELETE CASCADE,
     title              VARCHAR(255) NOT NULL,
     description        TEXT,
     order_index        INT          NOT NULL,
     duration           INT,
-    created_at         TIMESTAMP        DEFAULT NOW()
+    created_at         TIMESTAMP    DEFAULT NOW()
 );
+
+CREATE INDEX idx_package_curriculums_version_order ON package_curriculums (package_version_id, order_index);
 
 -- ==========================================
 -- ORDER
@@ -389,7 +418,7 @@ CREATE TABLE conversations
 (
     id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 
-    type       SMALLINT,
+    type       VARCHAR(50) NOT NULL DEFAULT 'general',
     booking_id UUID REFERENCES bookings (id),
 
     created_at TIMESTAMP        DEFAULT NOW()
@@ -406,11 +435,14 @@ CREATE TABLE messages
 (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 
-    conversation_id UUID REFERENCES conversations (id) ON DELETE CASCADE,
-    sender_id       UUID REFERENCES users (id),
+    conversation_id UUID        NOT NULL REFERENCES conversations (id) ON DELETE CASCADE,
+    sender_id       UUID        NOT NULL REFERENCES users (id),
 
     content         TEXT,
-    created_at      TIMESTAMP        DEFAULT NOW()
+    type            VARCHAR(50) NOT NULL DEFAULT 'text',
+    is_edited       BOOLEAN              DEFAULT FALSE,
+    created_at      TIMESTAMP            DEFAULT NOW(),
+    updated_at      TIMESTAMP
 );
 
 CREATE INDEX idx_messages_conv ON messages (conversation_id);
@@ -418,8 +450,9 @@ CREATE INDEX idx_messages_conv ON messages (conversation_id);
 CREATE TABLE message_attachments
 (
     id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    message_id UUID REFERENCES messages (id) ON DELETE CASCADE,
-    file_id    UUID REFERENCES files (id)
+    message_id UUID NOT NULL REFERENCES messages (id) ON DELETE CASCADE,
+    file_id    UUID REFERENCES files (id),
+    created_at TIMESTAMP DEFAULT NOW()
 );
 
 -- ==========================================
@@ -429,21 +462,45 @@ CREATE TABLE reports
 (
     id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 
-    reporter_id      UUID REFERENCES users (id),
+    reporter_id      UUID NOT NULL REFERENCES users (id),
     reported_user_id UUID REFERENCES users (id),
 
-    type             SMALLINT,
-    entity_id        UUID,
+    type             VARCHAR(50) NOT NULL,
+    entity_id        UUID        NOT NULL,
+    reason           VARCHAR(255) NOT NULL,
+    description      TEXT,
 
-    status           SMALLINT,
-    created_at       TIMESTAMP        DEFAULT NOW()
+    status           VARCHAR(50) NOT NULL DEFAULT 'open',
+    created_at       TIMESTAMP        DEFAULT NOW(),
+    resolved_at      TIMESTAMP,
+    resolved_by      UUID,
+    resolution_note  TEXT
 );
 
 CREATE TABLE report_evidences
 (
-    id        UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    report_id UUID REFERENCES reports (id) ON DELETE CASCADE,
-    file_id   UUID REFERENCES files (id)
+    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    report_id   UUID NOT NULL REFERENCES reports (id) ON DELETE CASCADE,
+    file_id     UUID NOT NULL REFERENCES files (id),
+    description VARCHAR(255),
+    uploaded_by UUID NOT NULL REFERENCES users (id),
+    created_at  TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE disputes
+(
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    report_id       UUID REFERENCES reports (id),
+    booking_id      UUID REFERENCES bookings (id),
+    session_id      UUID REFERENCES booking_sessions (id),
+    raised_by       UUID        NOT NULL REFERENCES users (id),
+    reason          VARCHAR(255) NOT NULL,
+    description     TEXT,
+    status          VARCHAR(50) NOT NULL DEFAULT 'open',
+    resolution_note TEXT,
+    created_at      TIMESTAMP DEFAULT NOW(),
+    resolved_at     TIMESTAMP,
+    resolved_by     UUID
 );
 
 -- ==========================================
