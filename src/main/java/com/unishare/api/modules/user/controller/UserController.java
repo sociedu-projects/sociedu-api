@@ -70,7 +70,7 @@ public class UserController {
     @PutMapping("/educations/{id}")
     public ResponseEntity<ApiResponse<UserEducationResponse>> updateEducation(
             @AuthenticationPrincipal CustomUserPrincipal principal,
-            @PathVariable UUID id,
+            @PathVariable("id") UUID id,
             @Valid @RequestBody UserEducationRequest request) {
         return ResponseEntity.ok(ApiResponse.<UserEducationResponse>build()
                 .withData(userService.updateEducation(principal.getUserId(), id, request))
@@ -81,7 +81,7 @@ public class UserController {
     @DeleteMapping("/educations/{id}")
     public ResponseEntity<ApiResponse<Void>> deleteEducation(
             @AuthenticationPrincipal CustomUserPrincipal principal,
-            @PathVariable UUID id) {
+            @PathVariable("id") UUID id) {
         userService.deleteEducation(principal.getUserId(), id);
         return ResponseEntity.ok(ApiResponse.<Void>build().withMessage("Education deleted successfully"));
     }
@@ -109,7 +109,7 @@ public class UserController {
     @PutMapping("/languages/{id}")
     public ResponseEntity<ApiResponse<UserLanguageResponse>> updateLanguage(
             @AuthenticationPrincipal CustomUserPrincipal principal,
-            @PathVariable UUID id,
+            @PathVariable("id") UUID id,
             @Valid @RequestBody UserLanguageRequest request) {
         return ResponseEntity.ok(ApiResponse.<UserLanguageResponse>build()
                 .withData(userService.updateLanguage(principal.getUserId(), id, request))
@@ -120,7 +120,7 @@ public class UserController {
     @DeleteMapping("/languages/{id}")
     public ResponseEntity<ApiResponse<Void>> deleteLanguage(
             @AuthenticationPrincipal CustomUserPrincipal principal,
-            @PathVariable UUID id) {
+            @PathVariable("id") UUID id) {
         userService.deleteLanguage(principal.getUserId(), id);
         return ResponseEntity.ok(ApiResponse.<Void>build().withMessage("Language deleted successfully"));
     }
@@ -148,7 +148,7 @@ public class UserController {
     @PutMapping("/experiences/{id}")
     public ResponseEntity<ApiResponse<UserExperienceResponse>> updateExperience(
             @AuthenticationPrincipal CustomUserPrincipal principal,
-            @PathVariable UUID id,
+            @PathVariable("id") UUID id,
             @Valid @RequestBody UserExperienceRequest request) {
         return ResponseEntity.ok(ApiResponse.<UserExperienceResponse>build()
                 .withData(userService.updateExperience(principal.getUserId(), id, request))
@@ -159,7 +159,7 @@ public class UserController {
     @DeleteMapping("/experiences/{id}")
     public ResponseEntity<ApiResponse<Void>> deleteExperience(
             @AuthenticationPrincipal CustomUserPrincipal principal,
-            @PathVariable UUID id) {
+            @PathVariable("id") UUID id) {
         userService.deleteExperience(principal.getUserId(), id);
         return ResponseEntity.ok(ApiResponse.<Void>build().withMessage("Experience deleted successfully"));
     }
@@ -187,7 +187,7 @@ public class UserController {
     @PutMapping("/certificates/{id}")
     public ResponseEntity<ApiResponse<UserCertificateResponse>> updateCertificate(
             @AuthenticationPrincipal CustomUserPrincipal principal,
-            @PathVariable UUID id,
+            @PathVariable("id") UUID id,
             @Valid @RequestBody UserCertificateRequest request) {
         return ResponseEntity.ok(ApiResponse.<UserCertificateResponse>build()
                 .withData(userService.updateCertificate(principal.getUserId(), id, request))
@@ -198,7 +198,7 @@ public class UserController {
     @DeleteMapping("/certificates/{id}")
     public ResponseEntity<ApiResponse<Void>> deleteCertificate(
             @AuthenticationPrincipal CustomUserPrincipal principal,
-            @PathVariable UUID id) {
+            @PathVariable("id") UUID id) {
         userService.deleteCertificate(principal.getUserId(), id);
         return ResponseEntity.ok(ApiResponse.<Void>build().withMessage("Certificate deleted successfully"));
     }
