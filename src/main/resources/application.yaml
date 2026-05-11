@@ -14,20 +14,24 @@ spring:
         options: "-c TimeZone=UTC"
 
   flyway:
-    enabled: ${FLYWAY_ENABLED:true}
+    enabled: ${FLYWAY_ENABLED:false} # dev: tắt vì đang dùng Hibernate ddl-auto. Bật lại khi sang Sprint hardening
     locations: classpath:db/migration
     baseline-on-migrate: true
 
   jpa:
     hibernate:
-      ddl-auto: update # validate
+      ddl-auto: ${HIBERNATE_DDL_AUTO:create-drop} # dev: wipe & recreate theo entity mỗi lần start. Override khi cần.
+    defer-datasource-initialization: true # đảm bảo data.sql/schema.sql ở classpath chạy SAU khi Hibernate dựng xong schema
     properties:
       hibernate:
-        dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
         jdbc:
           time_zone: UTC
     show-sql: false
+
+  sql:
+    init:
+      mode: ${SPRING_SQL_INIT_MODE:always} # luôn chạy schema.sql + data.sql trong classpath sau khi Hibernate khởi tạo
 
   mail:
     host: ${MAIL_HOST}
@@ -64,6 +68,7 @@ app:
       - "http://localhost:3001"
       - "http://127.0.0.1:3001"
       - "http://localhost:5174"
+      - "https://1g3l4zm9-9992.asse.devtunnels.ms"
       - "${APP_FRONTEND_BASE_URL}"
   logging:
     service-method-timing: false
@@ -123,6 +128,12 @@ spring:
   jpa:
     hibernate:
       ddl-auto: validate
+    defer-datasource-initialization: false
+  sql:
+    init:
+      mode: never
+  flyway:
+    enabled: true
 
 springdoc:
   api-docs:

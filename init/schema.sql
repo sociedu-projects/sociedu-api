@@ -28,15 +28,20 @@ CREATE TABLE role_capabilities
 
 CREATE TABLE users
 (
-    id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 
-    email        VARCHAR(255),
-    phone_number VARCHAR(20),
+    email          VARCHAR(255) UNIQUE,
+    email_verified BOOLEAN          DEFAULT FALSE,
 
-    status       SMALLINT         DEFAULT 0, -- app define
+    phone_number   VARCHAR(20) UNIQUE,
+    phone_verified BOOLEAN          DEFAULT FALSE,
 
-    created_at   TIMESTAMP        DEFAULT NOW(),
-    updated_at   TIMESTAMP        DEFAULT NOW()
+    date_of_birth  DATE,
+
+    status         VARCHAR(32)      DEFAULT 'pending', -- pending | active | suspended
+
+    created_at     TIMESTAMP        DEFAULT NOW(),
+    updated_at     TIMESTAMP        DEFAULT NOW()
 );
 
 CREATE INDEX idx_users_email ON users (email);
@@ -235,32 +240,34 @@ CREATE INDEX idx_mentor_profiles_verification ON mentor_profiles (verification_s
 CREATE TABLE service_packages
 (
     id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-
-    -- identity của "package logic"
-    package_group_id UUID NOT NULL,
-
-    mentor_id        UUID REFERENCES users (id),
-
-    name             VARCHAR(255),
-
-    -- versioning
-    version          INT  NOT NULL,
+    mentor_id        UUID         NOT NULL REFERENCES users (id),
+    name             VARCHAR(255) NOT NULL,
+    description      TEXT,
     is_active        BOOLEAN          DEFAULT TRUE,
-
-    -- business data
-    price            DECIMAL(19, 2),
-    duration         INT,
-
-    created_at       TIMESTAMP        DEFAULT NOW()
+    created_at       TIMESTAMP        DEFAULT NOW(),
+    updated_at       TIMESTAMP        DEFAULT NOW(),
+    deleted_at       TIMESTAMP
 );
 
-CREATE INDEX idx_package_group ON service_packages (package_group_id);
 CREATE INDEX idx_package_mentor ON service_packages (mentor_id);
+
+CREATE TABLE service_package_versions
+(
+    id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    package_id    UUID           NOT NULL REFERENCES service_packages (id) ON DELETE CASCADE,
+    price         DECIMAL(19, 2) NOT NULL,
+    duration      INT            NOT NULL,
+    delivery_type VARCHAR(255),
+    is_default    BOOLEAN          DEFAULT TRUE,
+    created_at    TIMESTAMP        DEFAULT NOW()
+);
+
+CREATE INDEX idx_package_versions_package ON service_package_versions (package_id);
 
 CREATE TABLE package_curriculums
 (
     id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    package_id UUID         NOT NULL REFERENCES service_packages (id) ON DELETE CASCADE,
+    package_version_id UUID         NOT NULL REFERENCES service_package_versions (id) ON DELETE CASCADE,
     title              VARCHAR(255) NOT NULL,
     description        TEXT,
     order_index        INT          NOT NULL,

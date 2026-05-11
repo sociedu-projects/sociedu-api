@@ -18,6 +18,15 @@ public interface ServicePackageRepository extends JpaRepository<ServicePackage, 
 
     Page<ServicePackage> findByMentorId(UUID mentorId, Pageable pageable);
 
+    /**
+     * Danh sách gói active (chưa archive) của 1 mentor — dùng khi `keyword == null`
+     * để tránh bind null param vào câu lệnh có {@code LOWER(?)} (PostgreSQL không có {@code lower(bytea)}).
+     */
+    Page<ServicePackage> findByMentorIdAndIsActiveTrueAndDeletedAtIsNull(UUID mentorId, Pageable pageable);
+
+    /** Tất cả gói active (cho marketplace) khi không filter theo mentor và không có keyword. */
+    Page<ServicePackage> findByIsActiveTrueAndDeletedAtIsNull(Pageable pageable);
+
     @Query("""
             SELECT p FROM ServicePackage p
             WHERE p.id = :id
