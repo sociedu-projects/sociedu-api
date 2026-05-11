@@ -44,8 +44,8 @@ public class MentorCatalogController {
     @SecurityRequirements(value = {})
     @GetMapping("/{id}/packages")
     public ResponseEntity<ApiResponse<Page<ServicePackageResponse>>> getMentorPackages(
-            @PathVariable UUID id,
-            @RequestParam(required = false) String q,
+            @PathVariable("id") UUID id,
+            @RequestParam(value = "q", required = false) String q,
             Pageable pageable) {
         return ResponseEntity.ok(ApiResponse.<Page<ServicePackageResponse>>build()
                 .withData(catalogService.getMentorPackages(id, q, pageable)));
@@ -57,7 +57,7 @@ public class MentorCatalogController {
     @GetMapping("/me/packages")
     public ResponseEntity<ApiResponse<Page<ServicePackageResponse>>> getMyPackages(
             @AuthenticationPrincipal CustomUserPrincipal principal,
-            @RequestParam(required = false) String q,
+            @RequestParam(value = "q", required = false) String q,
             Pageable pageable) {
         return ResponseEntity.ok(ApiResponse.<Page<ServicePackageResponse>>build()
                 .withData(catalogService.getMyPackages(principal.getUserId(), q, pageable)));
@@ -69,7 +69,7 @@ public class MentorCatalogController {
     @GetMapping("/me/packages/{pkgId}")
     public ResponseEntity<ApiResponse<ServicePackageResponse>> getMyPackage(
             @AuthenticationPrincipal CustomUserPrincipal principal,
-            @PathVariable UUID pkgId) {
+            @PathVariable("pkgId") UUID pkgId) {
         return ResponseEntity.ok(ApiResponse.<ServicePackageResponse>build()
                 .withData(catalogService.getMyPackage(principal.getUserId(), pkgId)));
     }
@@ -91,7 +91,7 @@ public class MentorCatalogController {
     @DeleteMapping("/me/packages/{pkgId}")
     public ResponseEntity<ApiResponse<Void>> deletePackage(
             @AuthenticationPrincipal CustomUserPrincipal principal,
-            @PathVariable UUID pkgId) {
+            @PathVariable("pkgId") UUID pkgId) {
         catalogService.deletePackage(principal.getUserId(), pkgId);
         return ResponseEntity.ok(ApiResponse.<Void>build().withMessage("Package deleted"));
     }
@@ -102,8 +102,8 @@ public class MentorCatalogController {
     @PostMapping("/me/packages/{pkgId}/versions/{verId}/curriculums")
     public ResponseEntity<ApiResponse<CurriculumItemResponse>> addCurriculum(
             @AuthenticationPrincipal CustomUserPrincipal principal,
-            @PathVariable UUID pkgId,
-            @PathVariable UUID verId,
+            @PathVariable("pkgId") UUID pkgId,
+            @PathVariable("verId") UUID verId,
             @Valid @RequestBody CurriculumItemRequest request) {
         return ResponseEntity.ok(ApiResponse.<CurriculumItemResponse>build()
                 .withData(catalogService.addCurriculumItem(principal.getUserId(), pkgId, verId, request)));
@@ -115,8 +115,8 @@ public class MentorCatalogController {
     @GetMapping("/me/packages/{pkgId}/versions/{verId}/curriculums")
     public ResponseEntity<ApiResponse<Page<CurriculumItemResponse>>> listCurriculum(
             @AuthenticationPrincipal CustomUserPrincipal principal,
-            @PathVariable UUID pkgId,
-            @PathVariable UUID verId,
+            @PathVariable("pkgId") UUID pkgId,
+            @PathVariable("verId") UUID verId,
             Pageable pageable) {
         return ResponseEntity.ok(ApiResponse.<Page<CurriculumItemResponse>>build()
                 .withData(catalogService.listCurriculum(principal.getUserId(), pkgId, verId, pageable)));
@@ -128,7 +128,7 @@ public class MentorCatalogController {
     @DeleteMapping("/me/curriculums/{curriculumId}")
     public ResponseEntity<ApiResponse<Void>> deleteCurriculum(
             @AuthenticationPrincipal CustomUserPrincipal principal,
-            @PathVariable UUID curriculumId) {
+            @PathVariable("curriculumId") UUID curriculumId) {
         catalogService.deleteCurriculumItem(principal.getUserId(), curriculumId);
         return ResponseEntity.ok(ApiResponse.<Void>build().withMessage("Da xoa muc curriculum"));
     }

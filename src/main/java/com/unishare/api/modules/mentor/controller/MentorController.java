@@ -42,9 +42,9 @@ public class MentorController {
     @SecurityRequirements(value = {})
     @GetMapping
     public ResponseEntity<ApiResponse<Page<MentorResponse>>> listMentors(
-            @RequestParam(required = false) String q,
-            @RequestParam(required = false) BigDecimal minBasePrice,
-            @RequestParam(required = false) BigDecimal maxBasePrice,
+            @RequestParam(value = "q", required = false) String q,
+            @RequestParam(value = "minBasePrice", required = false) BigDecimal minBasePrice,
+            @RequestParam(value = "maxBasePrice", required = false) BigDecimal maxBasePrice,
             Pageable pageable) {
         return ResponseEntity.ok(ApiResponse.<Page<MentorResponse>>build()
                 .withData(mentorProfileService.searchMentors(
@@ -55,7 +55,7 @@ public class MentorController {
     @PermitAll
     @SecurityRequirements(value = {})
     @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<MentorResponse>> getMentorProfile(@PathVariable UUID id) {
+    public ResponseEntity<ApiResponse<MentorResponse>> getMentorProfile(@PathVariable("id") UUID id) {
         return ResponseEntity.ok(ApiResponse.<MentorResponse>build()
                 .withData(mentorProfileService.getMentorProfile(id)));
     }
