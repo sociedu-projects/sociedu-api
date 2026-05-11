@@ -24,7 +24,7 @@ public class PublicUserController {
     @PermitAll
     @SecurityRequirements(value = {})
     @GetMapping("/{id}/profile")
-    public ResponseEntity<ApiResponse<UserFullProfileResponse>> getFullProfile(@PathVariable UUID id) {
+    public ResponseEntity<ApiResponse<UserFullProfileResponse>> getFullProfile(@PathVariable("id") UUID id) {
         UserProfileResponse profile = userService.getProfile(id);
         
         UserFullProfileResponse fullProfile = UserFullProfileResponse.builder()

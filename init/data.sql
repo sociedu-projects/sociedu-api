@@ -62,7 +62,7 @@ VALUES
 ('MANAGE_ALL');
 
 INSERT INTO role_capabilities (role_id, capability_id)
-SELECT 'f93d94ef-1fe8-48c4-b240-d9b1001affb1',
+SELECT (SELECT id FROM roles WHERE name = 'USER'),
        id
 FROM capabilities
 WHERE name IN (
@@ -85,7 +85,7 @@ WHERE name IN (
     );
 
 INSERT INTO role_capabilities (role_id, capability_id)
-SELECT 'd7af84b1-731d-48dc-bcd6-cebe8e78b279',
+SELECT (SELECT id FROM roles WHERE name = 'MENTOR'),
        id
 FROM capabilities
 WHERE name IN (
@@ -124,6 +124,6 @@ WHERE name IN (
     );
 
 INSERT INTO role_capabilities (role_id, capability_id)
-SELECT '29056341-f10b-4d2c-bb32-c6b82cf897bb',
+SELECT (SELECT id FROM roles WHERE name = 'ADMIN'),
        id
 FROM capabilities;
